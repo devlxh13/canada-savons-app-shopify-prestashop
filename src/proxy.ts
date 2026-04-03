@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/inngest"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/inngest"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
+  // Allow public paths (login, auth routes, inngest)
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
@@ -16,20 +16,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check JWT session cookie (direct access)
   const token = request.cookies.get(COOKIE_NAME)?.value;
-
-  if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (token) {
+    const payload = await verifyToken(token);
+    if (payload) {
+      return NextResponse.next();
+    }
   }
 
-  const payload = await verifyToken(token);
-  if (!payload) {
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete(COOKIE_NAME);
-    return response;
+  // Check if accessed from Shopify admin (has shop + host params)
+  // Shopify adds these when loading the app in the admin iframe
+  const shop = request.nextUrl.searchParams.get("shop");
+  const host = request.nextUrl.searchParams.get("host");
+  if (shop && host) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  return NextResponse.redirect(new URL("/login", request.url));
 }
 
 export const config = {
