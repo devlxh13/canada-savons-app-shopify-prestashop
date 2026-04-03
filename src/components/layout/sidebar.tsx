@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -17,6 +17,12 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Preserve shop + host params for Shopify admin iframe context
+  const shop = searchParams.get("shop");
+  const host = searchParams.get("host");
+  const extraParams = shop && host ? `?shop=${shop}&host=${host}` : "";
 
   return (
     <aside className="w-64 border-r bg-muted/40 p-4">
@@ -28,7 +34,7 @@ export function Sidebar() {
         {nav.map((item) => (
           <Link
             key={item.href}
-            href={item.href}
+            href={`${item.href}${extraParams}`}
             className={cn(
               "block rounded-md px-3 py-2 text-sm transition-colors",
               pathname === item.href
