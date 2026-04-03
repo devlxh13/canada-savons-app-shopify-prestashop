@@ -1,12 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
-import { shopify, sessionStorage } from "@/lib/shopify/auth";
+import { getShopifyApi } from "@/lib/shopify/auth";
+import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const callback = await shopify.auth.callback({
-    rawRequest: request,
-  });
+  try {
+    const shopifyApi = getShopifyApi();
+    const url = request.nextUrl;
 
-  await sessionStorage.storeSession(callback.session);
+    const shop = url.searchParams.get("shop");
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    const hmac = url.searchParams.get("hmac");
 
-  return NextResponse.redirect(new URL("/", request.url));
+    if (!shop || !code || !state) {
+      return NextResponse.json({ error: "Missing OAuth parameters" }, { status: 400 });
+    }
+
+    // Verify nonce
+    const savedNonce = request.cookies.get("shopify_oauth_nonce")?.value;
+    if (!savedNonce || savedNonce !== state) {
+      return NextResponse.json({ error: "Invalid state/nonce" }, { status: 403 });
+    }
+
+    // Exchange code for access token
+    const accessTokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: shopifyApi.config.apiKey,
+        client_secret: shopifyApi.config.apiSecretKey,
+        code,
+      }),
+    });
+
+    if (!accessTokenResponse.ok) {
+      const errText = await accessTokenResponse.text();
+      return NextResponse.json({ error: `Token exchange failed: ${errText}` }, { status: 500 });
+    }
+
+    const tokenData = await accessTokenResponse.json();
+    const accessToken = tokenData.access_token;
+    const scope = tokenData.scope;
+
+    // Store session in Neon
+    await prisma.session.upsert({
+      where: { id: `offline_${shop}` },
+      create: {
+        id: `offline_${shop}`,
+        shop,
+        state: state,
+        isOnline: false,
+        scope,
+        accessToken,
+      },
+      update: {
+        accessToken,
+        scope,
+        state,
+      },
+    });
+
+    // Clear nonce cookie and redirect to dashboard
+    const response = NextResponse.redirect(new URL("/", request.url));
+    response.cookies.delete("shopify_oauth_nonce");
+
+    return response;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
