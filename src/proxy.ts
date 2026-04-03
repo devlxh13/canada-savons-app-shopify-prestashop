@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, COOKIE_NAME } from "@/lib/auth";
+import { verifyToken, createToken, COOKIE_NAME } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/api/"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths (login, auth routes, inngest)
+  // Allow public paths (login, all API routes)
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
@@ -16,7 +16,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check JWT session cookie (direct access)
+  // Check JWT session cookie
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (token) {
     const payload = await verifyToken(token);
@@ -25,12 +25,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Check if accessed from Shopify admin (has shop + host params)
-  // Shopify adds these when loading the app in the admin iframe
+  // If accessed from Shopify admin (shop + host params), auto-create a session
   const shop = request.nextUrl.searchParams.get("shop");
   const host = request.nextUrl.searchParams.get("host");
   if (shop && host) {
-    return NextResponse.next();
+    const newToken = await createToken(`shopify:${shop}`);
+    const response = NextResponse.next();
+    response.cookies.set(COOKIE_NAME, newToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none", // Required for iframe
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+    return response;
   }
 
   return NextResponse.redirect(new URL("/login", request.url));
