@@ -1,0 +1,47 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model IdMapping {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resourceType String   @map("resource_type")
+  psId         Int      @map("ps_id")
+  shopifyGid   String   @map("shopify_gid")
+  dataHash     String?  @map("data_hash")
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz()
+  syncStatus   String   @default("pending") @map("sync_status")
+
+  @@unique([resourceType, psId])
+  @@map("id_mapping")
+}
+
+model SyncLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId        String   @map("job_id")
+  resourceType String   @map("resource_type")
+  psId         Int?     @map("ps_id")
+  action       String
+  details      Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("sync_logs")
+}
+
+model Session {
+  id          String    @id
+  shop        String
+  state       String?
+  isOnline    Boolean   @default(false) @map("is_online")
+  scope       String?
+  expires     DateTime? @db.Timestamptz()
+  accessToken String?   @map("access_token")
+  userId      BigInt?   @map("user_id")
+
+  @@map("sessions")
+}
