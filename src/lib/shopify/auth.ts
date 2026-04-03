@@ -1,5 +1,5 @@
 import "@shopify/shopify-api/adapters/node";
-import { shopifyApi, LATEST_API_VERSION } from "@shopify/shopify-api";
+import { shopifyApi, ApiVersion } from "@shopify/shopify-api";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { prisma } from "@/lib/db";
 
@@ -14,7 +14,7 @@ export const shopify = shopifyApi({
     "write_files", "read_files",
   ],
   hostName: process.env.SHOPIFY_APP_URL!.replace(/^https?:\/\//, ""),
-  apiVersion: LATEST_API_VERSION,
+  apiVersion: ApiVersion.April26,
   isEmbeddedApp: false,
 });
 
