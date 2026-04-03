@@ -12,9 +12,9 @@ export default function SettingsPage() {
           <CardHeader><CardTitle>Shopify Connection</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">Store: maison-du-savon-ca.myshopify.com</p>
-            <Button asChild>
-              <a href="/api/auth/shopify?shop=maison-du-savon-ca.myshopify.com">Connect to Shopify</a>
-            </Button>
+            <a href="/api/auth/shopify?shop=maison-du-savon-ca.myshopify.com">
+              <Button>Connect to Shopify</Button>
+            </a>
           </CardContent>
         </Card>
         <Card>

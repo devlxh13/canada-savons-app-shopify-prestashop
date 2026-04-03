@@ -31,7 +31,7 @@ export function SyncLauncher({ shop }: { shop: string }) {
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium">Resource Type</label>
-          <Select value={resourceType} onValueChange={setResourceType}>
+          <Select value={resourceType} onValueChange={(v) => v && setResourceType(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="products">Products</SelectItem>
