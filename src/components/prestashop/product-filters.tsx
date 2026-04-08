@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 interface FilterState {
   search: string;
   status: "all" | "active" | "inactive";
-  lang: "1" | "2";
   sync: "all" | "synced" | "not_synced" | "error";
   category: string;
   image: "all" | "with" | "without";
@@ -39,18 +38,6 @@ export function ProductFilters({ filters, onChange, onApply, categories }: Produ
           <option value="all">Tous</option>
           <option value="active">Actif</option>
           <option value="inactive">Inactif</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="text-xs text-muted-foreground">Langue</label>
-        <select
-          className="block w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-          value={filters.lang}
-          onChange={(e) => set("lang", e.target.value as FilterState["lang"])}
-        >
-          <option value="2">English</option>
-          <option value="1">Français</option>
         </select>
       </div>
 

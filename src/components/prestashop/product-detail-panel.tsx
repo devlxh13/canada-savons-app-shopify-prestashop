@@ -13,11 +13,8 @@ interface LocalProductDetail {
   weight: number | null;
   active: boolean;
   nameFr: string | null;
-  nameEn: string | null;
   descriptionFr: string | null;
-  descriptionEn: string | null;
   descriptionShortFr: string | null;
-  descriptionShortEn: string | null;
   priceHT: number;
   stockAvailable: number;
   categoryDefault: string | null;
@@ -131,22 +128,12 @@ export function ProductDetailPanel({ psId, onClose }: ProductDetailPanelProps) {
             )}
 
             <div>
-              <h3 className="font-semibold text-lg">{product.nameEn || product.nameFr || "—"}</h3>
-              <p className="text-sm text-muted-foreground">{product.nameFr || ""}</p>
+              <h3 className="font-semibold text-lg">{product.nameFr || "—"}</h3>
             </div>
 
             <div className="space-y-2">
               <div>
-                <span className="text-xs font-medium text-muted-foreground">Description (EN)</span>
-                <div
-                  className="text-sm"
-                  dangerouslySetInnerHTML={{
-                    __html: product.descriptionShortEn || product.descriptionEn || "<em>—</em>",
-                  }}
-                />
-              </div>
-              <div>
-                <span className="text-xs font-medium text-muted-foreground">Description (FR)</span>
+                <span className="text-xs font-medium text-muted-foreground">Description</span>
                 <div
                   className="text-sm"
                   dangerouslySetInnerHTML={{

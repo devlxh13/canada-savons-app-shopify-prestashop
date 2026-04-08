@@ -12,7 +12,6 @@ interface LocalProduct {
   reference: string | null;
   active: boolean;
   nameFr: string | null;
-  nameEn: string | null;
   priceHT: number;
   stockAvailable: number;
   categoryDefault: string | null;
@@ -39,7 +38,6 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     status: "all",
-    lang: "2",
     sync: "all",
     category: "all",
     image: "all",
@@ -72,7 +70,7 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
   }, [fetchProducts]);
 
   function getName(product: LocalProduct) {
-    return (filters.lang === "2" ? product.nameEn : product.nameFr) || product.nameFr || product.nameEn || "—";
+    return product.nameFr || "—";
   }
 
   function getImageUrl(product: LocalProduct): string | null {
