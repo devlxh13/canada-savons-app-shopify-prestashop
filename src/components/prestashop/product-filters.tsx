@@ -6,10 +6,8 @@ import { Button } from "@/components/ui/button";
 interface FilterState {
   search: string;
   status: "all" | "active" | "inactive";
-  sync: "all" | "synced" | "not_synced" | "error";
   category: string;
   image: "all" | "with" | "without";
-  stock: "all" | "in_stock" | "out_of_stock";
 }
 
 interface ProductFiltersProps {
@@ -38,33 +36,6 @@ export function ProductFilters({ filters, onChange, onApply, categories }: Produ
           <option value="all">Tous</option>
           <option value="active">Actif</option>
           <option value="inactive">Inactif</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="text-xs text-muted-foreground">Stock</label>
-        <select
-          className="block w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-          value={filters.stock}
-          onChange={(e) => set("stock", e.target.value as FilterState["stock"])}
-        >
-          <option value="all">Tous</option>
-          <option value="in_stock">En stock</option>
-          <option value="out_of_stock">Rupture</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="text-xs text-muted-foreground">Sync</label>
-        <select
-          className="block w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-          value={filters.sync}
-          onChange={(e) => set("sync", e.target.value as FilterState["sync"])}
-        >
-          <option value="all">Tous</option>
-          <option value="synced">Synced</option>
-          <option value="not_synced">Non synced</option>
-          <option value="error">Erreur</option>
         </select>
       </div>
 

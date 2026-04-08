@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface LocalProductDetail {
-  id: number;
+interface ProductDetail {
   psId: number;
   reference: string | null;
   ean13: string | null;
@@ -16,17 +15,10 @@ interface LocalProductDetail {
   descriptionFr: string | null;
   descriptionShortFr: string | null;
   priceHT: number;
-  stockAvailable: number;
   categoryDefault: string | null;
   categoryTags: string[];
   imageDefault: number | null;
   imageIds: number[];
-  lastSyncedAt: string;
-  sync: {
-    shopifyGid: string;
-    syncStatus: string;
-    lastSyncedAt: string;
-  } | null;
 }
 
 interface ProductDetailPanelProps {
@@ -35,9 +27,8 @@ interface ProductDetailPanelProps {
 }
 
 export function ProductDetailPanel({ psId, onClose }: ProductDetailPanelProps) {
-  const [product, setProduct] = useState<LocalProductDetail | null>(null);
+  const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
@@ -56,20 +47,6 @@ export function ProductDetailPanel({ psId, onClose }: ProductDetailPanelProps) {
       })
       .catch(() => setLoading(false));
   }, [psId]);
-
-  async function handleSync() {
-    setSyncing(true);
-    await fetch("/api/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resourceType: "products",
-        shop: "maison-du-savon-ca.myshopify.com",
-        psIds: [psId],
-      }),
-    });
-    setSyncing(false);
-  }
 
   const imageIds = product?.imageIds ?? [];
   const currentImageId = imageIds[currentImageIndex];
@@ -162,11 +139,6 @@ export function ProductDetailPanel({ psId, onClose }: ProductDetailPanelProps) {
               </div>
             </div>
 
-            <div>
-              <span className="text-xs text-muted-foreground">Stock disponible</span>
-              <p className="text-lg font-bold">{product.stockAvailable}</p>
-            </div>
-
             {product.categoryTags.length > 0 && (
               <div>
                 <span className="text-xs text-muted-foreground">Catégories</span>
@@ -180,29 +152,9 @@ export function ProductDetailPanel({ psId, onClose }: ProductDetailPanelProps) {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Badge variant={product.active ? "default" : "secondary"}>
-                {product.active ? "Active" : "Inactive"}
-              </Badge>
-              {product.sync ? (
-                <Badge variant={product.sync.syncStatus === "error" ? "destructive" : "default"}>
-                  {product.sync.syncStatus === "synced" ? "✓ Synced" : product.sync.syncStatus}
-                </Badge>
-              ) : (
-                <Badge variant="secondary">Non synced</Badge>
-              )}
-            </div>
-
-            {product.sync?.shopifyGid && (
-              <div className="text-xs text-muted-foreground">
-                <p>Shopify: {product.sync.shopifyGid}</p>
-                <p>Dernière sync: {new Date(product.sync.lastSyncedAt).toLocaleString()}</p>
-              </div>
-            )}
-
-            <Button onClick={handleSync} disabled={syncing} className="w-full">
-              {syncing ? "Sync en cours..." : product.sync ? "Re-sync ce produit" : "Sync ce produit"}
-            </Button>
+            <Badge variant={product.active ? "default" : "secondary"}>
+              {product.active ? "Actif" : "Inactif"}
+            </Badge>
           </div>
         ) : (
           <div className="p-4 text-muted-foreground">Produit introuvable</div>

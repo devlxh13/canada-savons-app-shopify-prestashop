@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getPSConnector } from "@/lib/prestashop/registry";
+import type { PSProduct, PSCategory } from "@/lib/prestashop/types";
+
+const FR_LANG_ID = "1";
+
+function getLangValue(values: { id: string; value: string }[], langId: string): string {
+  return values?.find((v) => v.id === langId)?.value ?? "";
+}
 
 export async function GET(
   _request: NextRequest,
@@ -9,29 +16,55 @@ export async function GET(
   const psId = parseInt(id);
 
   if (isNaN(psId)) {
-    return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
   try {
-    const product = await (prisma as any).product.findUnique({
-      where: { psId },
-    });
+    const ps = getPSConnector();
+
+    const [product, rawCategories] = await Promise.all([
+      ps.get<PSProduct>("products", psId),
+      ps.list<PSCategory>("categories", { display: "full" }),
+    ]);
 
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    const mapping = await (prisma as any).idMapping.findUnique({
-      where: { resourceType_psId: { resourceType: "product", psId } },
-    });
+    const catLookup: Record<string, string> = {};
+    for (const cat of rawCategories) {
+      catLookup[String(cat.id)] = getLangValue(cat.name, FR_LANG_ID);
+    }
+
+    const catIds = product.associations?.categories ?? [];
+    const categoryTags: string[] = [];
+    for (const catRef of catIds) {
+      const name = catLookup[catRef.id];
+      if (name && name !== "Root" && name !== "Racine" && name !== "Home" && name !== "Accueil") {
+        categoryTags.push(name);
+      }
+    }
+
+    const imageIds = (product.associations?.images ?? []).map((img) => parseInt(img.id));
+    const imageDefault = product.id_default_image && product.id_default_image !== "0"
+      ? parseInt(product.id_default_image)
+      : null;
 
     return NextResponse.json({
-      ...product,
-      priceHT: Number(product.priceHT),
-      weight: product.weight ? Number(product.weight) : null,
-      sync: mapping
-        ? { shopifyGid: mapping.shopifyGid, syncStatus: mapping.syncStatus, lastSyncedAt: mapping.lastSyncedAt }
-        : null,
+      psId: product.id,
+      reference: product.reference || null,
+      ean13: product.ean13 || null,
+      weight: product.weight ? parseFloat(product.weight) : null,
+      active: product.active === "1",
+      nameFr: getLangValue(product.name, FR_LANG_ID) || null,
+      descriptionFr: getLangValue(product.description, FR_LANG_ID) || null,
+      descriptionShortFr: getLangValue(product.description_short, FR_LANG_ID) || null,
+      priceHT: parseFloat(product.price),
+      stockAvailable: 0,
+      categoryDefault: catLookup[product.id_category_default] || null,
+      categoryTags,
+      imageDefault,
+      imageIds,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

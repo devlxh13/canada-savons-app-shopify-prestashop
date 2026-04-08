@@ -6,42 +6,31 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductFilters, type FilterState } from "./product-filters";
 
-interface LocalProduct {
-  id: number;
+interface Product {
   psId: number;
   reference: string | null;
   active: boolean;
   nameFr: string | null;
   priceHT: number;
-  stockAvailable: number;
   categoryDefault: string | null;
   categoryTags: string[];
   imageDefault: number | null;
-  sync: {
-    shopifyGid: string;
-    syncStatus: string;
-    lastSyncedAt: string;
-  } | null;
 }
 
 interface ProductTableProps {
-  onSelectProduct: (product: { id: number; psId: number }) => void;
-  onLastSyncUpdate: (date: string | null) => void;
+  onSelectProduct: (product: { psId: number }) => void;
 }
 
-export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTableProps) {
-  const [products, setProducts] = useState<LocalProduct[]>([]);
+export function ProductTable({ onSelectProduct }: ProductTableProps) {
+  const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     status: "all",
-    sync: "all",
     category: "all",
     image: "all",
-    stock: "all",
   });
   const limit = 25;
 
@@ -54,45 +43,22 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
     if (filters.search) params.set("search", filters.search);
     if (filters.status !== "all") params.set("status", filters.status);
     if (filters.category !== "all") params.set("category", filters.category);
-    if (filters.stock !== "all") params.set("stock", filters.stock);
-    if (filters.sync !== "all") params.set("sync", filters.sync);
+    if (filters.image !== "all") params.set("image", filters.image);
 
     const res = await fetch(`/api/products?${params}`);
     const json = await res.json();
     setProducts(json.data ?? []);
     setTotal(json.total ?? 0);
-    if (json.lastSyncedAt) onLastSyncUpdate(json.lastSyncedAt);
     setLoading(false);
-  }, [offset, filters.search, filters.status, filters.category, filters.stock, filters.sync, onLastSyncUpdate]);
+  }, [offset, filters.search, filters.status, filters.category, filters.image]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  function getName(product: LocalProduct) {
-    return product.nameFr || "—";
-  }
-
-  function getImageUrl(product: LocalProduct): string | null {
+  function getImageUrl(product: Product): string | null {
     if (!product.imageDefault) return null;
     return `/api/prestashop/images/${product.psId}/${product.imageDefault}`;
-  }
-
-  function toggleSelect(psId: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(psId)) next.delete(psId);
-      else next.add(psId);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (selected.size === products.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(products.map((p) => p.psId)));
-    }
   }
 
   return (
@@ -104,58 +70,30 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
         categories={[]}
       />
 
-      {selected.size > 0 && (
-        <div className="mb-3 flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{selected.size} sélectionné(s)</span>
-          <Button
-            size="sm"
-            onClick={() => {
-              const ids = Array.from(selected);
-              fetch("/api/sync", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resourceType: "products", shop: "maison-du-savon-ca.myshopify.com", psIds: ids }),
-              });
-            }}
-          >
-            Sync selected to Shopify
-          </Button>
-        </div>
-      )}
-
       <div className="rounded-md border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="p-3 w-8">
-                <input
-                  type="checkbox"
-                  checked={products.length > 0 && selected.size === products.length}
-                  onChange={toggleAll}
-                />
-              </th>
               <th className="p-3 text-left w-12">Image</th>
               <th className="p-3 text-left">Nom</th>
               <th className="p-3 text-left">Réf</th>
               <th className="p-3 text-left">Prix HT</th>
-              <th className="p-3 text-left">Stock</th>
               <th className="p-3 text-left">Catégories</th>
               <th className="p-3 text-left">Statut</th>
-              <th className="p-3 text-left">Sync</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b">
-                  <td className="p-3" colSpan={9}>
+                  <td className="p-3" colSpan={6}>
                     <Skeleton className="h-8 w-full" />
                   </td>
                 </tr>
               ))
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-3 text-center text-muted-foreground">
+                <td colSpan={6} className="p-3 text-center text-muted-foreground">
                   Aucun produit trouvé
                 </td>
               </tr>
@@ -166,15 +104,8 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
                   <tr
                     key={p.psId}
                     className="border-b hover:bg-muted/30 cursor-pointer"
-                    onClick={() => onSelectProduct({ id: p.id, psId: p.psId })}
+                    onClick={() => onSelectProduct({ psId: p.psId })}
                   >
-                    <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(p.psId)}
-                        onChange={() => toggleSelect(p.psId)}
-                      />
-                    </td>
                     <td className="p-3">
                       {imgUrl ? (
                         <img src={imgUrl} alt="" className="w-9 h-9 rounded object-cover" />
@@ -184,30 +115,16 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
                         </div>
                       )}
                     </td>
-                    <td className="p-3 font-medium">{getName(p)}</td>
+                    <td className="p-3 font-medium">{p.nameFr || "—"}</td>
                     <td className="p-3 font-mono text-xs">{p.reference || "—"}</td>
                     <td className="p-3">{p.priceHT.toFixed(2)} $</td>
-                    <td className="p-3">
-                      <Badge variant={p.stockAvailable > 0 ? "default" : "destructive"}>
-                        {p.stockAvailable}
-                      </Badge>
-                    </td>
                     <td className="p-3 text-xs max-w-[150px] truncate">
                       {p.categoryTags.length > 0 ? p.categoryTags.join(", ") : "—"}
                     </td>
                     <td className="p-3">
                       <Badge variant={p.active ? "default" : "secondary"}>
-                        {p.active ? "Active" : "Inactive"}
+                        {p.active ? "Actif" : "Inactif"}
                       </Badge>
-                    </td>
-                    <td className="p-3">
-                      {p.sync ? (
-                        <Badge variant={p.sync.syncStatus === "error" ? "destructive" : "default"}>
-                          {p.sync.syncStatus === "synced" ? "✓ Synced" : p.sync.syncStatus === "error" ? "Erreur" : p.sync.syncStatus}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
                     </td>
                   </tr>
                 );
@@ -222,7 +139,7 @@ export function ProductTable({ onSelectProduct, onLastSyncUpdate }: ProductTable
           Précédent
         </Button>
         <span className="text-sm text-muted-foreground">
-          {offset + 1}–{offset + products.length} sur {total} produits
+          {total > 0 ? `${offset + 1}–${Math.min(offset + limit, total)} sur ${total} produits` : "0 produits"}
         </span>
         <Button variant="outline" disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)}>
           Suivant
