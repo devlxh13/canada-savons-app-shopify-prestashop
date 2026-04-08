@@ -6,6 +6,7 @@ import { getSessionForShop } from "@/lib/shopify/auth";
 import { shopify } from "@/lib/shopify/auth";
 import { prisma } from "@/lib/db";
 import type { SyncJobConfig, SyncResult } from "@/lib/sync/types";
+import { syncProductsToLocal } from "@/lib/sync/local-sync";
 
 async function createSyncEngine(shop: string): Promise<SyncEngine> {
   const session = await getSessionForShop(shop);
@@ -123,4 +124,21 @@ export const syncSingle = inngest.createFunction(
   }
 );
 
-export const inngestFunctions = [syncProducts, syncCustomers, syncSingle];
+export const syncLocalProducts = inngest.createFunction(
+  {
+    id: "sync-local-products",
+    retries: 1,
+    triggers: [{ cron: "*/15 * * * *" }, { event: "sync/local-products" }],
+  },
+  async ({ step }: { step: any }) => {
+    const result = await step.run("sync-products-to-local", async () => {
+      const psConnector = getPSConnector();
+      const jobId = `local-sync-${Date.now()}`;
+      return syncProductsToLocal(psConnector, prisma, jobId);
+    });
+
+    return result;
+  }
+);
+
+export const inngestFunctions = [syncProducts, syncCustomers, syncSingle, syncLocalProducts];
