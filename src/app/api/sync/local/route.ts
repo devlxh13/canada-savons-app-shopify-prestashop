@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
-import { buildCategoryLookup, syncProductBatch, deleteStaleProducts, logSyncComplete } from "@/lib/sync/local-sync";
+import { buildCategoryLookup, buildStockLookup, syncProductBatch, deleteStaleProducts, logSyncComplete } from "@/lib/sync/local-sync";
 import { getPSConnector } from "@/lib/prestashop/registry";
 import { prisma } from "@/lib/db";
 
@@ -25,8 +25,9 @@ async function handleSync(request: NextRequest) {
   try {
     const ps = getPSConnector();
     const categoryLookup = await buildCategoryLookup(ps);
+    const stockLookup = await buildStockLookup(ps);
 
-    const batchResult = await syncProductBatch(ps, prisma, jobId, categoryLookup, offset, BATCH_SIZE);
+    const batchResult = await syncProductBatch(ps, prisma, jobId, categoryLookup, stockLookup, offset, BATCH_SIZE);
 
     if (batchResult.total < BATCH_SIZE) {
       // Last batch — get all psIds from DB and cleanup stale ones

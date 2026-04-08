@@ -23,17 +23,28 @@ export async function buildCategoryLookup(ps: PSConnector): Promise<CategoryLook
   return lookup;
 }
 
-async function getProductStock(ps: PSConnector, stockAvailableIds: { id: string; id_product_attribute: string }[]): Promise<number> {
-  let total = 0;
-  for (const sa of stockAvailableIds) {
-    try {
-      const stock = await ps.get<PSStockAvailable>("stock_availables", parseInt(sa.id));
-      total += parseInt(stock.quantity || "0");
-    } catch {
-      // skip unavailable stock entries
+interface StockLookup {
+  [productId: string]: number;
+}
+
+/** Fetch all stock_availables in one call and build a product -> total stock map. */
+export async function buildStockLookup(ps: PSConnector): Promise<StockLookup> {
+  const lookup: StockLookup = {};
+  let offset = 0;
+  const batchSize = 500;
+  let hasMore = true;
+
+  while (hasMore) {
+    const stocks = await ps.list<PSStockAvailable>("stock_availables", { limit: batchSize, offset });
+    for (const s of stocks) {
+      const pid = String(s.id_product);
+      lookup[pid] = (lookup[pid] ?? 0) + parseInt(s.quantity || "0");
     }
+    offset += batchSize;
+    if (stocks.length < batchSize) hasMore = false;
   }
-  return total;
+
+  return lookup;
 }
 
 export interface BatchSyncResult {
@@ -51,6 +62,7 @@ export async function syncProductBatch(
   prisma: PrismaClient,
   jobId: string,
   categoryLookup: CategoryLookup,
+  stockLookup: StockLookup,
   offset: number,
   batchSize: number
 ): Promise<BatchSyncResult> {
@@ -67,8 +79,7 @@ export async function syncProductBatch(
     result.psIds.push(product.id);
 
     try {
-      const stockAvailables = product.associations?.stock_availables ?? [];
-      const stockAvailable = await getProductStock(ps, stockAvailables);
+      const stockAvailable = stockLookup[String(product.id)] ?? 0;
 
       const catIds = product.associations?.categories ?? [];
       const categoryTags: string[] = [];
