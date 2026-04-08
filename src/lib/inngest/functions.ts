@@ -6,7 +6,7 @@ import { getSessionForShop } from "@/lib/shopify/auth";
 import { shopify } from "@/lib/shopify/auth";
 import { prisma } from "@/lib/db";
 import type { SyncJobConfig, SyncResult } from "@/lib/sync/types";
-import { buildCategoryLookup, syncProductBatch, deleteStaleProducts, logSyncComplete } from "@/lib/sync/local-sync";
+
 
 async function createSyncEngine(shop: string): Promise<SyncEngine> {
   const session = await getSessionForShop(shop);
@@ -124,58 +124,4 @@ export const syncSingle = inngest.createFunction(
   }
 );
 
-export const syncLocalProducts = inngest.createFunction(
-  {
-    id: "sync-local-products",
-    retries: 1,
-    triggers: [{ cron: "*/15 * * * *" }, { event: "sync/local-products" }],
-  },
-  async ({ step }: { step: any }) => {
-    const jobId = `local-sync-${Date.now()}`;
-    const batchSize = 50;
-
-    // Step 1: Build category lookup
-    const categoryLookup = await step.run("build-category-lookup", async () => {
-      const ps = getPSConnector();
-      return buildCategoryLookup(ps);
-    });
-
-    // Step 2+: Process batches until no more products
-    const allPsIds: number[] = [];
-    let totals = { total: 0, created: 0, updated: 0, skipped: 0, errors: 0 };
-    let offset = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const batchResult = await step.run(`sync-batch-${offset}`, async () => {
-        const ps = getPSConnector();
-        return syncProductBatch(ps, prisma, jobId, categoryLookup, offset, batchSize);
-      });
-
-      allPsIds.push(...batchResult.psIds);
-      totals.total += batchResult.total;
-      totals.created += batchResult.created;
-      totals.updated += batchResult.updated;
-      totals.skipped += batchResult.skipped;
-      totals.errors += batchResult.errors;
-
-      if (batchResult.total < batchSize) {
-        hasMore = false;
-      }
-      offset += batchSize;
-    }
-
-    // Final step: delete stale products and log
-    const deleted = await step.run("cleanup-stale-products", async () => {
-      return deleteStaleProducts(prisma, allPsIds);
-    });
-
-    await step.run("log-sync-complete", async () => {
-      return logSyncComplete(prisma, jobId, { ...totals, deleted });
-    });
-
-    return { ...totals, deleted };
-  }
-);
-
-export const inngestFunctions = [syncProducts, syncCustomers, syncSingle, syncLocalProducts];
+export const inngestFunctions = [syncProducts, syncCustomers, syncSingle];
