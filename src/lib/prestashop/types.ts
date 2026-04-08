@@ -19,6 +19,7 @@ export interface PSProduct {
   meta_description: PSMultiLangValue[];
   weight: string;
   ean13: string;
+  id_tax_rules_group: string;
   date_add: string;
   date_upd: string;
   associations: {
@@ -108,7 +109,7 @@ export interface PSFilters {
   sort?: string;
 }
 
-export type PSResourceType = "products" | "categories" | "customers" | "addresses" | "orders" | "stock_availables" | "combinations" | "images";
+export type PSResourceType = "products" | "categories" | "customers" | "addresses" | "orders" | "stock_availables" | "combinations" | "images" | "tax_rule_groups" | "tax_rules" | "taxes";
 
 export interface PSResourceConnector<T> {
   list(filters?: PSFilters): Promise<T[]>;

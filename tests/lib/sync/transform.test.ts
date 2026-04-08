@@ -32,6 +32,7 @@ describe("transformProduct", () => {
       meta_description: [{ id: "1", value: "" }, { id: "2", value: "" }],
       weight: "0.150000",
       ean13: "3760298170371",
+      id_tax_rules_group: "1",
       date_add: "2021-09-23 14:43:02",
       date_upd: "2025-10-25 11:12:00",
       associations: {
@@ -64,7 +65,7 @@ describe("transformProduct", () => {
       link_rewrite: [{ id: "1", value: "test" }],
       meta_title: [{ id: "1", value: "" }],
       meta_description: [{ id: "1", value: "" }],
-      weight: "0", ean13: "", date_add: "", date_upd: "",
+      weight: "0", ean13: "", id_tax_rules_group: "1", date_add: "", date_upd: "",
       associations: {},
     };
 
