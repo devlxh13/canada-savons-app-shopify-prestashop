@@ -10,6 +10,7 @@ interface FilterState {
   sync: "all" | "synced" | "not_synced" | "error";
   category: string;
   image: "all" | "with" | "without";
+  stock: "all" | "in_stock" | "out_of_stock";
 }
 
 interface ProductFiltersProps {
@@ -54,6 +55,19 @@ export function ProductFilters({ filters, onChange, onApply, categories }: Produ
       </div>
 
       <div>
+        <label className="text-xs text-muted-foreground">Stock</label>
+        <select
+          className="block w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+          value={filters.stock}
+          onChange={(e) => set("stock", e.target.value as FilterState["stock"])}
+        >
+          <option value="all">Tous</option>
+          <option value="in_stock">En stock</option>
+          <option value="out_of_stock">Rupture</option>
+        </select>
+      </div>
+
+      <div>
         <label className="text-xs text-muted-foreground">Sync</label>
         <select
           className="block w-full rounded-md border bg-background px-3 py-1.5 text-sm"
@@ -76,7 +90,9 @@ export function ProductFilters({ filters, onChange, onApply, categories }: Produ
         >
           <option value="all">Toutes</option>
           {categories.map((c) => (
-            <option key={c.id} value={String(c.id)}>{c.name}</option>
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
           ))}
         </select>
       </div>
