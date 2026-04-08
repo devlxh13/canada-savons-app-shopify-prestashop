@@ -54,11 +54,8 @@ model Product {
   weight             Decimal? @db.Decimal(10, 3)
   active             Boolean  @default(true)
   nameFr             String?  @map("name_fr")
-  nameEn             String?  @map("name_en")
   descriptionFr      String?  @map("description_fr") @db.Text
-  descriptionEn      String?  @map("description_en") @db.Text
   descriptionShortFr String?  @map("description_short_fr") @db.Text
-  descriptionShortEn String?  @map("description_short_en") @db.Text
   priceHT            Decimal  @map("price_ht") @db.Decimal(10, 6)
   taxRuleGroupId     Int?     @map("tax_rule_group_id")
   stockAvailable     Int      @default(0) @map("stock_available")

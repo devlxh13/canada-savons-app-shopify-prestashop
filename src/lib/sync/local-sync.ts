@@ -1,10 +1,14 @@
-import type { PSProduct, PSCategory, PSStockAvailable } from "@/lib/prestashop/types";
+import type { PSProduct, PSCategory } from "@/lib/prestashop/types";
 import type { PSConnector } from "@/lib/prestashop/connector";
 import type { PrismaClient } from "@prisma/client";
 import { contentHash } from "./hash";
 
 interface CategoryLookup {
-  [id: string]: { nameFr: string; nameEn: string };
+  [id: string]: string; // id -> name (FR)
+}
+
+interface StockLookup {
+  [productId: string]: number;
 }
 
 function getLangValue(values: { id: string; value: string }[], langId: string): string {
@@ -15,33 +19,35 @@ export async function buildCategoryLookup(ps: PSConnector): Promise<CategoryLook
   const categories = await ps.list<PSCategory>("categories", { display: "full" });
   const lookup: CategoryLookup = {};
   for (const cat of categories) {
-    lookup[String(cat.id)] = {
-      nameFr: getLangValue(cat.name, "1"),
-      nameEn: getLangValue(cat.name, "2"),
-    };
+    const name = getLangValue(cat.name, "1"); // FR only
+    lookup[String(cat.id)] = name;
   }
   return lookup;
 }
 
-interface StockLookup {
-  [productId: string]: number;
-}
-
-/** Fetch all stock_availables in one call and build a product -> total stock map. */
 export async function buildStockLookup(ps: PSConnector): Promise<StockLookup> {
   const lookup: StockLookup = {};
+  // Fetch stock_availables via API in batches
   let offset = 0;
   const batchSize = 500;
   let hasMore = true;
 
   while (hasMore) {
-    const stocks = await ps.list<PSStockAvailable>("stock_availables", { limit: batchSize, offset });
-    for (const s of stocks) {
-      const pid = String(s.id_product);
-      lookup[pid] = (lookup[pid] ?? 0) + parseInt(s.quantity || "0");
+    try {
+      const stocks = await ps.list<{ id: number; id_product: string; id_product_attribute: string; quantity: string }>(
+        "stock_availables",
+        { limit: batchSize, offset }
+      );
+      for (const s of stocks) {
+        const pid = String(s.id_product);
+        lookup[pid] = (lookup[pid] ?? 0) + parseInt(s.quantity || "0");
+      }
+      if (stocks.length < batchSize) hasMore = false;
+      offset += batchSize;
+    } catch {
+      // API failed for stock — return empty lookup, stock will be 0
+      break;
     }
-    offset += batchSize;
-    if (stocks.length < batchSize) hasMore = false;
   }
 
   return lookup;
@@ -84,17 +90,13 @@ export async function syncProductBatch(
       const catIds = product.associations?.categories ?? [];
       const categoryTags: string[] = [];
       for (const catRef of catIds) {
-        const cat = categoryLookup[catRef.id];
-        if (cat) {
-          const name = cat.nameEn || cat.nameFr;
-          if (name && name !== "Root" && name !== "Racine" && name !== "Home" && name !== "Accueil") {
-            categoryTags.push(name);
-          }
+        const name = categoryLookup[catRef.id];
+        if (name && name !== "Root" && name !== "Racine" && name !== "Home" && name !== "Accueil") {
+          categoryTags.push(name);
         }
       }
 
-      const defaultCat = categoryLookup[product.id_category_default];
-      const categoryDefault = defaultCat?.nameEn || defaultCat?.nameFr || null;
+      const defaultCat = categoryLookup[product.id_category_default] || null;
 
       const imageIds = (product.associations?.images ?? []).map((img) => parseInt(img.id));
       const imageDefault = product.id_default_image && product.id_default_image !== "0"
@@ -107,15 +109,12 @@ export async function syncProductBatch(
         weight: product.weight ? parseFloat(product.weight) : null,
         active: product.active === "1",
         nameFr: getLangValue(product.name, "1") || null,
-        nameEn: getLangValue(product.name, "2") || null,
         descriptionFr: getLangValue(product.description, "1") || null,
-        descriptionEn: getLangValue(product.description, "2") || null,
         descriptionShortFr: getLangValue(product.description_short, "1") || null,
-        descriptionShortEn: getLangValue(product.description_short, "2") || null,
         priceHT: parseFloat(product.price),
         taxRuleGroupId: product.id_tax_rules_group ? parseInt(String(product.id_tax_rules_group)) : null,
         stockAvailable,
-        categoryDefault,
+        categoryDefault: defaultCat,
         categoryTags,
         imageDefault,
         imageIds,
