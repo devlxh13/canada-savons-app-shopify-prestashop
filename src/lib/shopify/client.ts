@@ -256,33 +256,50 @@ export class ShopifyClient {
   }
 
   async setInventory(productGid: string, quantity: number): Promise<void> {
-    // Get variant's inventoryItem ID
+    // Get variant's inventoryItem ID + current quantity
     const { data: prodData } = await this.graphql.request(
       `query getInventoryItem($id: ID!) {
         product(id: $id) {
           variants(first: 1) {
-            edges { node { inventoryItem { id } } }
+            edges {
+              node {
+                inventoryItem {
+                  id
+                  inventoryLevels(first: 1) {
+                    edges {
+                      node {
+                        location { id }
+                        quantities(names: ["available"]) { quantity }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }`,
       { variables: { id: productGid } }
     );
-    const product = prodData.product as { variants: { edges: { node: { inventoryItem: { id: string } } }[] } };
-    const inventoryItemId = product.variants.edges[0]?.node?.inventoryItem?.id;
+
+    const variant = (prodData.product as any)?.variants?.edges?.[0]?.node;
+    const inventoryItemId = variant?.inventoryItem?.id;
     if (!inventoryItemId) return;
 
-    // Get first location
-    const { data: locData } = await this.graphql.request(
-      `query { locations(first: 1) { edges { node { id } } } }`
-    );
-    const locations = locData.locations as { edges: { node: { id: string } }[] };
-    const locationId = locations.edges[0]?.node?.id;
+    const level = variant.inventoryItem.inventoryLevels?.edges?.[0]?.node;
+    const locationId = level?.location?.id;
+    const currentQty = level?.quantities?.[0]?.quantity ?? 0;
     if (!locationId) return;
 
-    // Set inventory quantity
+    // Skip if already correct
+    if (currentQty === quantity) return;
+
+    const idempotentKey = `inv-${inventoryItemId}-${Date.now()}`;
+
+    // Set inventory with @idempotent directive + changeFromQuantity
     await this.graphql.request(
-      `mutation inventorySetQuantities($input: InventorySetQuantitiesInput!) {
-        inventorySetQuantities(input: $input) {
+      `mutation($input: InventorySetQuantitiesInput!) {
+        inventorySetQuantities(input: $input) @idempotent(key: "${idempotentKey}") {
           userErrors { field message }
         }
       }`,
@@ -291,7 +308,7 @@ export class ShopifyClient {
           input: {
             reason: "correction",
             name: "available",
-            quantities: [{ inventoryItemId, locationId, quantity }],
+            quantities: [{ inventoryItemId, locationId, quantity, changeFromQuantity: currentQty }],
           },
         },
       }
