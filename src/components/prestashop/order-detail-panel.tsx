@@ -149,8 +149,10 @@ export function OrderDetailPanel({ psId, onClose }: OrderDetailPanelProps) {
                 <span className="text-right">{parseFloat(order.totalProducts).toFixed(2)} $</span>
                 <span className="text-muted-foreground">Livraison</span>
                 <span className="text-right">{parseFloat(order.totalShipping).toFixed(2)} $</span>
-                <span className="font-bold">Total TTC</span>
-                <span className="text-right font-bold">{parseFloat(order.totalPaidTaxIncl).toFixed(2)} $</span>
+                <span className="text-muted-foreground">Taxes</span>
+                <span className="text-right">{(parseFloat(order.totalPaidTaxIncl) - parseFloat(order.totalPaidTaxExcl)).toFixed(2)} $</span>
+                <span className="font-bold border-t pt-1">Total TTC</span>
+                <span className="text-right font-bold border-t pt-1">{parseFloat(order.totalPaidTaxIncl).toFixed(2)} $</span>
               </div>
             </div>
           </div>
