@@ -32,23 +32,23 @@ export class SyncEngine {
       let action: "create" | "update";
 
       if (existing?.shopifyGid) {
-        const updated = await this.shopify.updateProduct(existing.shopifyGid, transformed);
+        const updated = await this.shopify.updateProduct(existing.shopifyGid, transformed.product, transformed.variant);
         shopifyGid = updated.id;
         action = "update";
       } else {
         // Dedup: search Shopify for existing product by SKU then title
         const existingGid = await this.shopify.findExistingProduct(
-          transformed.variants?.[0]?.sku || "",
-          transformed.title
+          transformed.sku,
+          transformed.product.title
         );
 
         if (existingGid) {
           // Found in Shopify but no local mapping — reconcile
-          const updated = await this.shopify.updateProduct(existingGid, transformed);
+          const updated = await this.shopify.updateProduct(existingGid, transformed.product, transformed.variant);
           shopifyGid = updated.id;
           action = "update";
         } else {
-          const created = await this.shopify.createProduct(transformed);
+          const created = await this.shopify.createProduct(transformed.product, transformed.variant);
           shopifyGid = created.id;
           action = "create";
         }

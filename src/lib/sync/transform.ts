@@ -6,21 +6,23 @@ function getLangValue(values: PSMultiLangValue[], langId: number): string {
 
 export function transformProduct(ps: PSProduct, langId: number = 2) {
   return {
-    title: getLangValue(ps.name, langId),
-    bodyHtml: getLangValue(ps.description, langId) || getLangValue(ps.description_short, langId),
-    vendor: "La Maison du Savon de Marseille",
-    productType: "",
-    handle: getLangValue(ps.link_rewrite, langId),
-    status: ps.active === "1" ? ("ACTIVE" as const) : ("DRAFT" as const),
-    variants: [
-      {
-        price: parseFloat(ps.price).toFixed(2),
-        sku: ps.reference,
-        barcode: ps.ean13 || "",
+    product: {
+      title: getLangValue(ps.name, langId),
+      descriptionHtml: getLangValue(ps.description, langId) || getLangValue(ps.description_short, langId),
+      vendor: "La Maison du Savon de Marseille",
+      productType: "",
+      handle: getLangValue(ps.link_rewrite, langId),
+      status: ps.active === "1" ? ("ACTIVE" as const) : ("DRAFT" as const),
+      seo: {
+        title: getLangValue(ps.meta_title, langId),
+        description: getLangValue(ps.meta_description, langId),
       },
-    ],
-    metaTitle: getLangValue(ps.meta_title, langId),
-    metaDescription: getLangValue(ps.meta_description, langId),
+    },
+    variant: {
+      price: parseFloat(ps.price).toFixed(2),
+      barcode: ps.ean13 || "",
+    },
+    sku: ps.reference || "",
   };
 }
 

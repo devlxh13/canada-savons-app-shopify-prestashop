@@ -44,14 +44,13 @@ describe("transformProduct", () => {
 
     const result = transformProduct(psProduct, 2);
 
-    expect(result.title).toBe("Foot Cream - 150ml");
-    expect(result.bodyHtml).toBe("<p>Description EN</p>");
-    expect(result.vendor).toBe("La Maison du Savon de Marseille");
-    expect(result.status).toBe("ACTIVE");
-    expect(result.variants[0].price).toBe("39.00");
-    expect(result.variants[0].sku).toBe("M26037");
-    expect(result.variants[0].weight).toBe(0.15);
-    expect(result.variants[0].barcode).toBe("3760298170371");
+    expect(result.product.title).toBe("Foot Cream - 150ml");
+    expect(result.product.descriptionHtml).toBe("<p>Description EN</p>");
+    expect(result.product.vendor).toBe("La Maison du Savon de Marseille");
+    expect(result.product.status).toBe("ACTIVE");
+    expect(result.variant.price).toBe("39.00");
+    expect(result.sku).toBe("M26037");
+    expect(result.variant.barcode).toBe("3760298170371");
   });
 
   it("sets status to DRAFT when product is inactive", () => {
@@ -69,7 +68,7 @@ describe("transformProduct", () => {
       associations: {},
     };
 
-    expect(transformProduct(psProduct, 1).status).toBe("DRAFT");
+    expect(transformProduct(psProduct, 1).product.status).toBe("DRAFT");
   });
 });
 

@@ -18,7 +18,7 @@ export class ShopifyClient {
         products(first: $first, after: $after, query: $query) {
           edges {
             node {
-              id title bodyHtml vendor productType handle status
+              id title descriptionHtml vendor productType handle status
               variants(first: 100) { edges { node { id title price sku barcode } } }
               images(first: 20) { edges { node { id src: url altText } } }
             }
@@ -45,55 +45,97 @@ export class ShopifyClient {
     };
   }
 
-  async createProduct(input: {
-    title: string;
-    bodyHtml: string;
-    vendor: string;
-    productType: string;
-    status: string;
-    variants?: { price: string; sku: string; barcode: string }[];
-  }): Promise<ShopifyProduct> {
+  async createProduct(productInput: Record<string, unknown>, variantData?: { price: string; barcode: string }): Promise<ShopifyProduct> {
+    // Step 1: Create product
     const { data } = await this.graphql.request(
       `mutation productCreate($input: ProductInput!) {
         productCreate(input: $input) {
-          product { id title bodyHtml vendor productType handle status }
+          product {
+            id title descriptionHtml vendor productType handle status
+            variants(first: 1) { edges { node { id } } }
+          }
           userErrors { field message }
         }
       }`,
-      { variables: { input } }
+      { variables: { input: productInput } }
     );
 
     const result = data.productCreate as {
-      product: ShopifyProduct | null;
+      product: (ShopifyProduct & { variants: { edges: { node: { id: string } }[] } }) | null;
       userErrors: { field: string[]; message: string }[];
     };
 
     if (result.userErrors.length > 0) {
       throw new Error(result.userErrors.map((e) => e.message).join(", "));
     }
-    return result.product!;
+
+    const product = result.product!;
+
+    // Step 2: Update the default variant with price/barcode if provided
+    if (variantData && product.variants?.edges?.[0]?.node?.id) {
+      const variantId = product.variants.edges[0].node.id;
+      await this.graphql.request(
+        `mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            userErrors { field message }
+          }
+        }`,
+        {
+          variables: {
+            productId: product.id,
+            variants: [{ id: variantId, price: variantData.price, barcode: variantData.barcode }],
+          },
+        }
+      );
+    }
+
+    return product;
   }
 
-  async updateProduct(id: string, input: Record<string, unknown>): Promise<ShopifyProduct> {
+  async updateProduct(id: string, productInput: Record<string, unknown>, variantData?: { price: string; barcode: string }): Promise<ShopifyProduct> {
     const { data } = await this.graphql.request(
       `mutation productUpdate($input: ProductInput!) {
         productUpdate(input: $input) {
-          product { id title handle status }
+          product {
+            id title handle status
+            variants(first: 1) { edges { node { id } } }
+          }
           userErrors { field message }
         }
       }`,
-      { variables: { input: { id, ...input } } }
+      { variables: { input: { id, ...productInput } } }
     );
 
     const result = data.productUpdate as {
-      product: ShopifyProduct | null;
+      product: (ShopifyProduct & { variants: { edges: { node: { id: string } }[] } }) | null;
       userErrors: { field: string[]; message: string }[];
     };
 
     if (result.userErrors.length > 0) {
       throw new Error(result.userErrors.map((e) => e.message).join(", "));
     }
-    return result.product!;
+
+    const product = result.product!;
+
+    // Update variant price/barcode
+    if (variantData && product.variants?.edges?.[0]?.node?.id) {
+      const variantId = product.variants.edges[0].node.id;
+      await this.graphql.request(
+        `mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            userErrors { field message }
+          }
+        }`,
+        {
+          variables: {
+            productId: product.id,
+            variants: [{ id: variantId, price: variantData.price, barcode: variantData.barcode }],
+          },
+        }
+      );
+    }
+
+    return product;
   }
 
   async createCustomer(input: {
