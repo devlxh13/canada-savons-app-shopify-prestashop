@@ -122,4 +122,94 @@ export class ShopifyClient {
     }
     return result.customer!;
   }
+
+  async findExistingProduct(sku: string, title: string): Promise<string | null> {
+    if (sku) {
+      const { products } = await this.listProducts({ first: 1, query: `sku:${sku}` });
+      if (products.length > 0) return products[0].id;
+    }
+    if (title) {
+      const { products } = await this.listProducts({ first: 1, query: `title:${title}` });
+      if (products.length > 0) return products[0].id;
+    }
+    return null;
+  }
+
+  async findCustomerByEmail(email: string): Promise<string | null> {
+    const { data } = await this.graphql.request(
+      `query findCustomer($query: String!) {
+        customers(first: 1, query: $query) {
+          edges { node { id } }
+        }
+      }`,
+      { variables: { query: `email:${email}` } }
+    );
+    const customers = data.customers as { edges: { node: { id: string } }[] };
+    return customers.edges.length > 0 ? customers.edges[0].node.id : null;
+  }
+
+  async updateCustomer(id: string, input: Record<string, unknown>): Promise<ShopifyCustomer> {
+    const { data } = await this.graphql.request(
+      `mutation customerUpdate($input: CustomerInput!) {
+        customerUpdate(input: $input) {
+          customer { id firstName lastName email }
+          userErrors { field message }
+        }
+      }`,
+      { variables: { input: { id, ...input } } }
+    );
+
+    const result = data.customerUpdate as {
+      customer: ShopifyCustomer | null;
+      userErrors: { field: string[]; message: string }[];
+    };
+
+    if (result.userErrors.length > 0) {
+      throw new Error(result.userErrors.map((e) => e.message).join(", "));
+    }
+    return result.customer!;
+  }
+
+  async createOrder(input: {
+    customerId: string;
+    lineItems: { variantId: string; quantity: number }[];
+    billingAddress?: Record<string, string>;
+    shippingAddress?: Record<string, string>;
+    financialStatus: string;
+    note: string;
+    tags: string[];
+  }): Promise<{ id: string }> {
+    const { data } = await this.graphql.request(
+      `mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
+        orderCreate(order: $order, options: $options) {
+          order { id }
+          userErrors { field message }
+        }
+      }`,
+      {
+        variables: {
+          order: {
+            customerId: input.customerId,
+            lineItems: input.lineItems,
+            billingAddress: input.billingAddress,
+            shippingAddress: input.shippingAddress,
+            financialStatus: input.financialStatus,
+            note: input.note,
+            tags: input.tags,
+          },
+          options: { inventoryBehaviour: "BYPASS" },
+        },
+      }
+    );
+
+    const result = data.orderCreate as {
+      order: { id: string } | null;
+      userErrors: { field: string[]; message: string }[];
+    };
+
+    if (result.userErrors.length > 0) {
+      throw new Error(result.userErrors.map((e) => e.message).join(", "));
+    }
+    return result.order!;
+  }
 }
