@@ -28,7 +28,8 @@ export class PSApiClient {
     };
     const url = this.buildUrl(resource, id);
     const data = await this.request(url);
-    return data[singularMap[resource] ?? resource] as T;
+    const singular = singularMap[resource] ?? resource;
+    return (data[singular] ?? data[resource]) as T;
   }
 
   async search<T>(resource: PSResourceType, query: string): Promise<T[]> {
@@ -46,7 +47,10 @@ export class PSApiClient {
 
     const params = new URLSearchParams();
     params.set("output_format", "JSON");
-    params.set("display", filters?.display ?? "full");
+    // Don't add display for single-resource fetches — PS API returns
+    // full object by default and display=full breaks the response format
+    if (!id && filters?.display) params.set("display", filters.display);
+    if (!id && !filters?.display) params.set("display", "full");
 
     if (filters?.limit) params.set("limit", String(filters.limit));
     if (filters?.offset) params.set("index", String(filters.offset));
