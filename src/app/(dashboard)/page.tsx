@@ -1,95 +1,83 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
+import { KPICards } from "@/components/dashboard/kpi-cards";
+import { SyncChart } from "@/components/dashboard/sync-chart";
+import { ScheduledSyncs } from "@/components/dashboard/scheduled-syncs";
+import { RetrySummary } from "@/components/dashboard/retry-summary";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [totalMappings, recentLogs, errorCount] = await Promise.all([
-    prisma.idMapping.count(),
-    prisma.syncLog.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
-    prisma.syncLog.count({ where: { action: "error" } }),
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const [
+    totalProducts,
+    totalCustomers,
+    totalOrders,
+    totalSynced,
+    errors24h,
+    recentLogs,
+  ] = await Promise.all([
+    (prisma as any).idMapping.count({ where: { resourceType: "product", syncStatus: "synced" } }),
+    (prisma as any).idMapping.count({ where: { resourceType: "customer", syncStatus: "synced" } }),
+    (prisma as any).idMapping.count({ where: { resourceType: "order", syncStatus: "synced" } }),
+    (prisma as any).idMapping.count({ where: { syncStatus: "synced" } }),
+    (prisma as any).syncLog.count({ where: { action: "error", createdAt: { gte: yesterday } } }),
+    (prisma as any).syncLog.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
 
-  const syncedProducts = await prisma.idMapping.count({ where: { resourceType: "product" } });
-  const syncedCustomers = await prisma.idMapping.count({ where: { resourceType: "customer" } });
-
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Overview</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Vue d&apos;ensemble</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Synced</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{totalMappings}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{syncedProducts}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{syncedCustomers}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Errors</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-destructive">{errorCount}</p>
-          </CardContent>
-        </Card>
+      <KPICards
+        totalSynced={totalSynced}
+        products={totalProducts}
+        customers={totalCustomers}
+        orders={totalOrders}
+        errors24h={errors24h}
+      />
+
+      <SyncChart />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ScheduledSyncs />
+        <RetrySummary />
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-      <div className="rounded-md border">
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Activit&eacute; r&eacute;cente</h2>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="p-3 text-left">Type</th>
-              <th className="p-3 text-left">PS ID</th>
-              <th className="p-3 text-left">Action</th>
-              <th className="p-3 text-left">Date</th>
+            <tr className="text-left text-muted-foreground border-b">
+              <th className="pb-2">Job</th>
+              <th className="pb-2">Type</th>
+              <th className="pb-2">PS ID</th>
+              <th className="pb-2">Action</th>
+              <th className="pb-2">Date</th>
             </tr>
           </thead>
           <tbody>
-            {recentLogs.map((log) => (
+            {recentLogs.map((log: any) => (
               <tr key={log.id} className="border-b">
-                <td className="p-3">{log.resourceType}</td>
-                <td className="p-3">{log.psId}</td>
-                <td className="p-3">
+                <td className="py-2 font-mono text-xs">{log.jobId?.slice(0, 8)}...</td>
+                <td>{log.resourceType}</td>
+                <td>{log.psId}</td>
+                <td>
                   <span className={
-                    log.action === "error" ? "text-destructive" :
-                    log.action === "create" ? "text-green-600" :
-                    log.action === "update" ? "text-blue-600" :
+                    log.action === "error" ? "text-red-500" :
+                    log.action === "create" ? "text-green-500" :
+                    log.action === "update" ? "text-blue-500" :
                     "text-muted-foreground"
                   }>
                     {log.action}
                   </span>
                 </td>
-                <td className="p-3 text-muted-foreground">
-                  {log.createdAt.toLocaleString()}
+                <td className="text-muted-foreground">
+                  {new Date(log.createdAt).toLocaleString("fr-CA")}
                 </td>
               </tr>
             ))}
-            {recentLogs.length === 0 && (
-              <tr>
-                <td className="p-3 text-muted-foreground" colSpan={4}>
-                  No sync activity yet.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
