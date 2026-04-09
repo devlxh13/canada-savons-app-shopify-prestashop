@@ -47,8 +47,8 @@ describe("PSApiClient", () => {
       await client.list("products", { limit: 10, offset: 20 });
 
       const url = mockFetch.mock.calls[0][0] as string;
-      expect(url).toContain("limit=10");
-      expect(url).toContain("index=20");
+      // PS API uses limit=offset,count format for pagination
+      expect(url).toContain("limit=20%2C10");
     });
   });
 
