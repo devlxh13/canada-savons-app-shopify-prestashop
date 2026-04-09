@@ -22,9 +22,13 @@ export async function GET(
   try {
     const ps = getPSConnector();
 
-    const [product, rawCategories] = await Promise.all([
+    const [product, rawCategories, stocks] = await Promise.all([
       ps.get<PSProduct>("products", psId),
       ps.list<PSCategory>("categories", { display: "full" }),
+      ps.list<{ id_product: string; quantity: string }>(
+        "stock_availables",
+        { display: "full", filter: { id_product: String(psId) } }
+      ),
     ]);
 
     if (!product) {
@@ -60,7 +64,7 @@ export async function GET(
       descriptionFr: getLangValue(product.description, FR_LANG_ID) || null,
       descriptionShortFr: getLangValue(product.description_short, FR_LANG_ID) || null,
       priceHT: parseFloat(product.price),
-      stockAvailable: 0,
+      stockAvailable: stocks.reduce((sum, s) => sum + parseInt(s.quantity || "0"), 0),
       categoryDefault: catLookup[product.id_category_default] || null,
       categoryTags,
       imageDefault,

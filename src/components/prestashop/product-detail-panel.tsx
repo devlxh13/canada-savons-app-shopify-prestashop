@@ -15,6 +15,7 @@ interface ProductDetail {
   descriptionFr: string | null;
   descriptionShortFr: string | null;
   priceHT: number;
+  stockAvailable: number;
   categoryDefault: string | null;
   categoryTags: string[];
   imageDefault: number | null;
@@ -132,6 +133,12 @@ export function ProductDetailPanel({ psId, onClose }: ProductDetailPanelProps) {
               <div>
                 <span className="text-xs text-muted-foreground">EAN13</span>
                 <p className="font-mono text-xs">{product.ean13 || "—"}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Stock</span>
+                <p className={product.stockAvailable <= 0 ? "text-destructive font-medium" : "font-medium"}>
+                  {product.stockAvailable}
+                </p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Poids</span>
