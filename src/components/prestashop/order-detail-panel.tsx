@@ -39,6 +39,30 @@ interface OrderDetailPanelProps {
 export function OrderDetailPanel({ psId, onClose }: OrderDetailPanelProps) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [syncMessage, setSyncMessage] = useState("");
+
+  async function handleSync() {
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resourceType: "orders", psIds: [psId] }),
+      });
+      const data = await res.json();
+      if (data.results?.[0]?.action === "error") {
+        setSyncStatus("error");
+        setSyncMessage(data.results[0].error || "Erreur");
+      } else {
+        setSyncStatus("done");
+        setSyncMessage(data.results?.[0]?.action || "ok");
+      }
+    } catch {
+      setSyncStatus("error");
+      setSyncMessage("Erreur réseau");
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -155,6 +179,18 @@ export function OrderDetailPanel({ psId, onClose }: OrderDetailPanelProps) {
                 <span className="text-right font-bold border-t pt-1">{parseFloat(order.totalPaidTaxIncl).toFixed(2)} $</span>
               </div>
             </div>
+
+            <Button
+              onClick={handleSync}
+              disabled={syncStatus === "syncing"}
+              className="w-full"
+              variant={syncStatus === "done" ? "secondary" : syncStatus === "error" ? "destructive" : "default"}
+            >
+              {syncStatus === "syncing" ? "Sync en cours..." :
+               syncStatus === "done" ? `Sync OK (${syncMessage})` :
+               syncStatus === "error" ? `Erreur: ${syncMessage}` :
+               "Sync vers Shopify"}
+            </Button>
           </div>
         ) : (
           <div className="p-4 text-muted-foreground">Commande introuvable</div>

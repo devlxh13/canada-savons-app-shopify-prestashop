@@ -42,6 +42,30 @@ interface CustomerDetailPanelProps {
 export function CustomerDetailPanel({ psId, onClose }: CustomerDetailPanelProps) {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [syncMessage, setSyncMessage] = useState("");
+
+  async function handleSync() {
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resourceType: "customers", psIds: [psId] }),
+      });
+      const data = await res.json();
+      if (data.results?.[0]?.action === "error") {
+        setSyncStatus("error");
+        setSyncMessage(data.results[0].error || "Erreur");
+      } else {
+        setSyncStatus("done");
+        setSyncMessage(data.results?.[0]?.action || "ok");
+      }
+    } catch {
+      setSyncStatus("error");
+      setSyncMessage("Erreur réseau");
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -157,6 +181,17 @@ export function CustomerDetailPanel({ psId, onClose }: CustomerDetailPanelProps)
                 </div>
               )}
             </div>
+            <Button
+              onClick={handleSync}
+              disabled={syncStatus === "syncing"}
+              className="w-full"
+              variant={syncStatus === "done" ? "secondary" : syncStatus === "error" ? "destructive" : "default"}
+            >
+              {syncStatus === "syncing" ? "Sync en cours..." :
+               syncStatus === "done" ? `Sync OK (${syncMessage})` :
+               syncStatus === "error" ? `Erreur: ${syncMessage}` :
+               "Sync vers Shopify"}
+            </Button>
           </div>
         ) : (
           <div className="p-4 text-muted-foreground">Client introuvable</div>
