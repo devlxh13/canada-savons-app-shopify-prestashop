@@ -36,9 +36,22 @@ export class SyncEngine {
         shopifyGid = updated.id;
         action = "update";
       } else {
-        const created = await this.shopify.createProduct(transformed);
-        shopifyGid = created.id;
-        action = "create";
+        // Dedup: search Shopify for existing product by SKU then title
+        const existingGid = await this.shopify.findExistingProduct(
+          transformed.variants?.[0]?.sku || "",
+          transformed.title
+        );
+
+        if (existingGid) {
+          // Found in Shopify but no local mapping — reconcile
+          const updated = await this.shopify.updateProduct(existingGid, transformed);
+          shopifyGid = updated.id;
+          action = "update";
+        } else {
+          const created = await this.shopify.createProduct(transformed);
+          shopifyGid = created.id;
+          action = "create";
+        }
       }
 
       await (this.prisma as any).idMapping.upsert({
@@ -71,8 +84,27 @@ export class SyncEngine {
         return { psId, action: "skip", shopifyGid: existing.shopifyGid };
       }
 
-      const created = await this.shopify.createCustomer(transformed);
-      const shopifyGid = created.id!;
+      let shopifyGid: string;
+      let action: "create" | "update";
+
+      if (existing?.shopifyGid) {
+        const updated = await this.shopify.updateCustomer(existing.shopifyGid, transformed);
+        shopifyGid = updated.id!;
+        action = "update";
+      } else {
+        // Dedup: search Shopify by email
+        const existingGid = await this.shopify.findCustomerByEmail(transformed.email);
+
+        if (existingGid) {
+          const updated = await this.shopify.updateCustomer(existingGid, transformed);
+          shopifyGid = updated.id!;
+          action = "update";
+        } else {
+          const created = await this.shopify.createCustomer(transformed);
+          shopifyGid = created.id!;
+          action = "create";
+        }
+      }
 
       await (this.prisma as any).idMapping.upsert({
         where: { resourceType_psId: { resourceType: "customer", psId } },
@@ -80,8 +112,8 @@ export class SyncEngine {
         update: { shopifyGid, dataHash: hash, lastSyncedAt: new Date(), syncStatus: "synced" },
       });
 
-      await this.log(jobId, "customer", psId, "create");
-      return { psId, action: "create", shopifyGid };
+      await this.log(jobId, "customer", psId, action);
+      return { psId, action, shopifyGid };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       await this.log(jobId, "customer", psId, "error", { error: message });
