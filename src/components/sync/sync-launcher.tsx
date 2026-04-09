@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function SyncLauncher({ shop }: { shop: string }) {
+export function SyncLauncher() {
   const router = useRouter();
   const [resourceType, setResourceType] = useState("products");
   const [psIds, setPsIds] = useState("");
@@ -16,7 +16,7 @@ export function SyncLauncher({ shop }: { shop: string }) {
 
   async function handleLaunch() {
     setLaunching(true);
-    const body: Record<string, unknown> = { resourceType, shop, batchSize: parseInt(batchSize) };
+    const body: Record<string, unknown> = { resourceType, batchSize: parseInt(batchSize) };
     if (psIds.trim()) body.psIds = psIds.split(",").map((id) => parseInt(id.trim()));
 
     const res = await fetch("/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -36,8 +36,14 @@ export function SyncLauncher({ shop }: { shop: string }) {
             <SelectContent>
               <SelectItem value="products">Products</SelectItem>
               <SelectItem value="customers">Customers</SelectItem>
+              <SelectItem value="orders">Commandes (terminées)</SelectItem>
             </SelectContent>
           </Select>
+          {resourceType === "orders" && (
+            <p className="text-xs text-muted-foreground">
+              Les clients et produits manquants seront créés automatiquement.
+            </p>
+          )}
         </div>
         <div>
           <label className="text-sm font-medium">Specific PS IDs (optional, comma-separated)</label>
