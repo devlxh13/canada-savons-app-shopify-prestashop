@@ -70,3 +70,46 @@ model Product {
 
   @@map("products")
 }
+
+model RetryQueue {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId        String   @map("job_id")
+  resourceType String   @map("resource_type")
+  psId         Int      @map("ps_id")
+  attemptCount Int      @default(0) @map("attempt_count")
+  lastError    String   @map("last_error") @db.Text
+  status       String   @default("pending") // pending | retrying | resolved | abandoned
+  nextRetryAt  DateTime @default(now()) @map("next_retry_at") @db.Timestamptz()
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@index([status, nextRetryAt])
+  @@index([resourceType])
+  @@map("retry_queue")
+}
+
+model CronConfig {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resourceType   String    @unique @map("resource_type")
+  enabled        Boolean   @default(true)
+  cronExpression String    @map("cron_expression")
+  lastRunAt      DateTime? @map("last_run_at") @db.Timestamptz()
+  nextRunAt      DateTime? @map("next_run_at") @db.Timestamptz()
+  lastJobId      String?   @map("last_job_id")
+
+  @@map("cron_config")
+}
+
+model SyncStat {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date         DateTime @db.Date
+  resourceType String   @map("resource_type")
+  created      Int      @default(0)
+  updated      Int      @default(0)
+  skipped      Int      @default(0)
+  errors       Int      @default(0)
+  durationMs   Int      @default(0) @map("duration_ms")
+
+  @@unique([date, resourceType])
+  @@map("sync_stats")
+}
