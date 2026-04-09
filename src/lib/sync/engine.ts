@@ -5,6 +5,7 @@ import type { PSProduct, PSCustomer, PSOrder, PSAddress } from "@/lib/prestashop
 import type { SyncResult } from "./types";
 import { transformProduct, transformCustomer, transformOrder } from "./transform";
 import { contentHash } from "./hash";
+import { withImmediateRetry, computeDeferredNextRetry } from "./retry";
 
 export class SyncEngine {
   constructor(
@@ -15,120 +16,126 @@ export class SyncEngine {
 
   async syncSingleProduct(psId: number, jobId: string): Promise<SyncResult> {
     try {
-      const psProduct = await this.ps.get<PSProduct>("products", psId);
-      const transformed = transformProduct(psProduct);
-      const hash = contentHash(transformed);
+      return await withImmediateRetry(async () => {
+        const psProduct = await this.ps.get<PSProduct>("products", psId);
+        const transformed = transformProduct(psProduct);
+        const hash = contentHash(transformed);
 
-      const existing = await (this.prisma as any).idMapping.findUnique({
-        where: { resourceType_psId: { resourceType: "product", psId } },
-      });
+        const existing = await (this.prisma as any).idMapping.findUnique({
+          where: { resourceType_psId: { resourceType: "product", psId } },
+        });
 
-      if (existing?.dataHash === hash) {
-        await this.log(jobId, "product", psId, "skip");
-        return { psId, action: "skip", shopifyGid: existing.shopifyGid };
-      }
+        if (existing?.dataHash === hash) {
+          await this.log(jobId, "product", psId, "skip");
+          return { psId, action: "skip", shopifyGid: existing.shopifyGid };
+        }
 
-      let shopifyGid: string;
-      let action: "create" | "update";
+        let shopifyGid: string;
+        let action: "create" | "update";
 
-      if (existing?.shopifyGid) {
-        const updated = await this.shopify.updateProduct(existing.shopifyGid, transformed.product, transformed.variant);
-        shopifyGid = updated.id;
-        action = "update";
-      } else {
-        // Dedup: search Shopify for existing product by SKU then title
-        const existingGid = await this.shopify.findExistingProduct(
-          transformed.sku,
-          transformed.product.title
-        );
-
-        if (existingGid) {
-          // Found in Shopify but no local mapping — reconcile
-          const updated = await this.shopify.updateProduct(existingGid, transformed.product, transformed.variant);
+        if (existing?.shopifyGid) {
+          const updated = await this.shopify.updateProduct(existing.shopifyGid, transformed.product, transformed.variant);
           shopifyGid = updated.id;
           action = "update";
         } else {
-          const created = await this.shopify.createProduct(transformed.product, transformed.variant);
-          shopifyGid = created.id;
-          action = "create";
+          // Dedup: search Shopify for existing product by SKU then title
+          const existingGid = await this.shopify.findExistingProduct(
+            transformed.sku,
+            transformed.product.title
+          );
+
+          if (existingGid) {
+            // Found in Shopify but no local mapping — reconcile
+            const updated = await this.shopify.updateProduct(existingGid, transformed.product, transformed.variant);
+            shopifyGid = updated.id;
+            action = "update";
+          } else {
+            const created = await this.shopify.createProduct(transformed.product, transformed.variant);
+            shopifyGid = created.id;
+            action = "create";
+          }
         }
-      }
 
-      // Sync inventory from PrestaShop
-      try {
-        const stocks = await this.ps.list<{ id_product: string; quantity: string }>(
-          "stock_availables",
-          { display: "full", filter: { id_product: String(psId) } }
-        );
-        const totalStock = stocks.reduce((sum, s) => sum + parseInt(s.quantity || "0"), 0);
-        await this.shopify.setInventory(shopifyGid, totalStock);
-      } catch {
-        // Stock sync failure is non-fatal
-      }
+        // Sync inventory from PrestaShop
+        try {
+          const stocks = await this.ps.list<{ id_product: string; quantity: string }>(
+            "stock_availables",
+            { display: "full", filter: { id_product: String(psId) } }
+          );
+          const totalStock = stocks.reduce((sum, s) => sum + parseInt(s.quantity || "0"), 0);
+          await this.shopify.setInventory(shopifyGid, totalStock);
+        } catch {
+          // Stock sync failure is non-fatal
+        }
 
-      await (this.prisma as any).idMapping.upsert({
-        where: { resourceType_psId: { resourceType: "product", psId } },
-        create: { resourceType: "product", psId, shopifyGid, dataHash: hash, syncStatus: "synced" },
-        update: { shopifyGid, dataHash: hash, lastSyncedAt: new Date(), syncStatus: "synced" },
+        await (this.prisma as any).idMapping.upsert({
+          where: { resourceType_psId: { resourceType: "product", psId } },
+          create: { resourceType: "product", psId, shopifyGid, dataHash: hash, syncStatus: "synced" },
+          update: { shopifyGid, dataHash: hash, lastSyncedAt: new Date(), syncStatus: "synced" },
+        });
+
+        await this.log(jobId, "product", psId, action);
+        return { psId, action, shopifyGid };
       });
-
-      await this.log(jobId, "product", psId, action);
-      return { psId, action, shopifyGid };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       await this.log(jobId, "product", psId, "error", { error: message });
+      await this.enqueueRetry(jobId, "product", psId, message);
       return { psId, action: "error", error: message };
     }
   }
 
   async syncSingleCustomer(psId: number, jobId: string): Promise<SyncResult> {
     try {
-      const psCustomer = await this.ps.get<PSCustomer>("customers", psId);
-      const transformed = transformCustomer(psCustomer);
-      const hash = contentHash(transformed);
+      return await withImmediateRetry(async () => {
+        const psCustomer = await this.ps.get<PSCustomer>("customers", psId);
+        const transformed = transformCustomer(psCustomer);
+        const hash = contentHash(transformed);
 
-      const existing = await (this.prisma as any).idMapping.findUnique({
-        where: { resourceType_psId: { resourceType: "customer", psId } },
-      });
+        const existing = await (this.prisma as any).idMapping.findUnique({
+          where: { resourceType_psId: { resourceType: "customer", psId } },
+        });
 
-      if (existing?.dataHash === hash) {
-        await this.log(jobId, "customer", psId, "skip");
-        return { psId, action: "skip", shopifyGid: existing.shopifyGid };
-      }
+        if (existing?.dataHash === hash) {
+          await this.log(jobId, "customer", psId, "skip");
+          return { psId, action: "skip", shopifyGid: existing.shopifyGid };
+        }
 
-      let shopifyGid: string;
-      let action: "create" | "update";
+        let shopifyGid: string;
+        let action: "create" | "update";
 
-      if (existing?.shopifyGid) {
-        const updated = await this.shopify.updateCustomer(existing.shopifyGid, transformed);
-        shopifyGid = updated.id!;
-        action = "update";
-      } else {
-        // Dedup: search Shopify by email
-        const existingGid = await this.shopify.findCustomerByEmail(transformed.email);
-
-        if (existingGid) {
-          const updated = await this.shopify.updateCustomer(existingGid, transformed);
+        if (existing?.shopifyGid) {
+          const updated = await this.shopify.updateCustomer(existing.shopifyGid, transformed);
           shopifyGid = updated.id!;
           action = "update";
         } else {
-          const created = await this.shopify.createCustomer(transformed);
-          shopifyGid = created.id!;
-          action = "create";
+          // Dedup: search Shopify by email
+          const existingGid = await this.shopify.findCustomerByEmail(transformed.email);
+
+          if (existingGid) {
+            const updated = await this.shopify.updateCustomer(existingGid, transformed);
+            shopifyGid = updated.id!;
+            action = "update";
+          } else {
+            const created = await this.shopify.createCustomer(transformed);
+            shopifyGid = created.id!;
+            action = "create";
+          }
         }
-      }
 
-      await (this.prisma as any).idMapping.upsert({
-        where: { resourceType_psId: { resourceType: "customer", psId } },
-        create: { resourceType: "customer", psId, shopifyGid, dataHash: hash, syncStatus: "synced" },
-        update: { shopifyGid, dataHash: hash, lastSyncedAt: new Date(), syncStatus: "synced" },
+        await (this.prisma as any).idMapping.upsert({
+          where: { resourceType_psId: { resourceType: "customer", psId } },
+          create: { resourceType: "customer", psId, shopifyGid, dataHash: hash, syncStatus: "synced" },
+          update: { shopifyGid, dataHash: hash, lastSyncedAt: new Date(), syncStatus: "synced" },
+        });
+
+        await this.log(jobId, "customer", psId, action);
+        return { psId, action, shopifyGid };
       });
-
-      await this.log(jobId, "customer", psId, action);
-      return { psId, action, shopifyGid };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       await this.log(jobId, "customer", psId, "error", { error: message });
+      await this.enqueueRetry(jobId, "customer", psId, message);
       return { psId, action: "error", error: message };
     }
   }
@@ -216,6 +223,7 @@ export class SyncEngine {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       await this.log(jobId, "order", psId, "error", { error: message });
+      await this.enqueueRetry(jobId, "order", psId, message);
       return { psId, action: "error", error: message };
     }
   }
@@ -232,6 +240,24 @@ export class SyncEngine {
     const product = data.product as { variants: { edges: { node: { id: string } }[] } };
     if (!product.variants.edges.length) throw new Error(`No variants for product ${productGid}`);
     return product.variants.edges[0].node.id;
+  }
+
+  private async enqueueRetry(jobId: string, resourceType: string, psId: number, error: string) {
+    try {
+      await (this.prisma as any).retryQueue.create({
+        data: {
+          jobId,
+          resourceType,
+          psId,
+          lastError: error,
+          status: "pending",
+          attemptCount: 3, // Already failed 3 immediate retries
+          nextRetryAt: computeDeferredNextRetry(4, new Date()),
+        },
+      });
+    } catch {
+      // Queue insertion failure is non-fatal — error is already logged
+    }
   }
 
   private async log(jobId: string, resourceType: string, psId: number, action: string, details?: Record<string, unknown>) {

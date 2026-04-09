@@ -3,19 +3,31 @@ import { SyncEngine } from "@/lib/sync/engine";
 
 describe("SyncEngine", () => {
   let mockPSConnector: { list: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
-  let mockShopifyClient: { createProduct: ReturnType<typeof vi.fn>; updateProduct: ReturnType<typeof vi.fn> };
+  let mockShopifyClient: {
+    createProduct: ReturnType<typeof vi.fn>;
+    updateProduct: ReturnType<typeof vi.fn>;
+    findExistingProduct: ReturnType<typeof vi.fn>;
+    setInventory: ReturnType<typeof vi.fn>;
+  };
   let mockPrisma: {
     idMapping: { findUnique: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
     syncLog: { create: ReturnType<typeof vi.fn> };
+    retryQueue: { create: ReturnType<typeof vi.fn> };
   };
   let engine: SyncEngine;
 
   beforeEach(() => {
-    mockPSConnector = { list: vi.fn(), get: vi.fn() };
-    mockShopifyClient = { createProduct: vi.fn(), updateProduct: vi.fn() };
+    mockPSConnector = { list: vi.fn().mockResolvedValue([]), get: vi.fn() };
+    mockShopifyClient = {
+      createProduct: vi.fn(),
+      updateProduct: vi.fn(),
+      findExistingProduct: vi.fn().mockResolvedValue(null),
+      setInventory: vi.fn().mockResolvedValue(undefined),
+    };
     mockPrisma = {
       idMapping: { findUnique: vi.fn(), upsert: vi.fn() },
       syncLog: { create: vi.fn() },
+      retryQueue: { create: vi.fn() },
     };
     engine = new SyncEngine(mockPSConnector as any, mockShopifyClient as any, mockPrisma as any);
   });
