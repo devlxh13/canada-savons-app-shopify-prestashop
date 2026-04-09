@@ -16,8 +16,6 @@ export function transformProduct(ps: PSProduct, langId: number = 2) {
       {
         price: parseFloat(ps.price).toFixed(2),
         sku: ps.reference,
-        weight: parseFloat(ps.weight) || 0,
-        weightUnit: "KILOGRAMS" as const,
         barcode: ps.ean13 || "",
       },
     ],
