@@ -12,7 +12,11 @@ interface PSOrderRow {
   date_add: string;
 }
 
-export function OrderTable() {
+interface OrderTableProps {
+  onSelectOrder?: (o: { psId: number }) => void;
+}
+
+export function OrderTable({ onSelectOrder }: OrderTableProps = {}) {
   const [orders, setOrders] = useState<PSOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
@@ -47,7 +51,7 @@ export function OrderTable() {
             {loading ? (
               <tr><td colSpan={6} className="p-3 text-center text-muted-foreground">Loading...</td></tr>
             ) : orders.map((o) => (
-              <tr key={o.id} className="border-b">
+              <tr key={o.id} className="border-b cursor-pointer hover:bg-muted/50" onClick={() => onSelectOrder?.({ psId: o.id })}>
                 <td className="p-3">{o.id}</td>
                 <td className="p-3 font-mono text-xs">{o.reference}</td>
                 <td className="p-3">{o.id_customer}</td>
