@@ -4,6 +4,7 @@ import { getPSConnector } from "@/lib/prestashop/registry";
 import { shopify } from "@/lib/shopify/auth";
 import { ShopifyClient } from "@/lib/shopify/client";
 import { SyncEngine } from "@/lib/sync/engine";
+import { recordSyncStats } from "@/lib/sync/stats";
 import { prisma } from "@/lib/db";
 
 export const maxDuration = 300;
@@ -21,6 +22,8 @@ export async function POST(request: NextRequest) {
   if (!resourceType) {
     return NextResponse.json({ error: "resourceType is required" }, { status: 400 });
   }
+
+  const startTime = Date.now();
 
   try {
     const session = await prisma.session.findFirst({
@@ -60,6 +63,18 @@ export async function POST(request: NextRequest) {
       else if (resourceType === "customers") results.push(await engine.syncSingleCustomer(item.id, jobId));
       else if (resourceType === "orders") results.push(await engine.syncSingleOrder(item.id, jobId));
     }
+
+    // Aggregate results for stats
+    const counts = {
+      created: results.filter((r) => r.action === "create").length,
+      updated: results.filter((r) => r.action === "update").length,
+      skipped: results.filter((r) => r.action === "skip").length,
+      errors: results.filter((r) => r.action === "error").length,
+      durationMs: Date.now() - startTime,
+    };
+
+    const singularType = resourceType.replace(/s$/, "");
+    await recordSyncStats(prisma, singularType, counts).catch(() => {});
 
     if (items.length < batchSize) {
       return NextResponse.json({ jobId, status: "completed", batch: { offset, results } });
