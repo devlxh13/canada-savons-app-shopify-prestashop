@@ -51,7 +51,7 @@ export class ShopifyClient {
     vendor: string;
     productType: string;
     status: string;
-    variants?: { price: string; sku: string; weight: number; barcode: string }[];
+    variants?: { price: string; sku: string; barcode: string }[];
   }): Promise<ShopifyProduct> {
     const { data } = await this.graphql.request(
       `mutation productCreate($input: ProductInput!) {
