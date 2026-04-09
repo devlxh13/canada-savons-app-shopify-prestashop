@@ -10,15 +10,15 @@ export async function GET(request: NextRequest) {
     const shop = url.searchParams.get("shop");
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
-    const hmac = url.searchParams.get("hmac");
-
     if (!shop || !code || !state) {
       return NextResponse.json({ error: "Missing OAuth parameters" }, { status: 400 });
     }
 
-    // Verify nonce
-    const savedNonce = request.cookies.get("shopify_oauth_nonce")?.value;
-    if (!savedNonce || savedNonce !== state) {
+    // Verify nonce from database (cookies don't work in Shopify admin iframe)
+    const existingSession = await prisma.session.findUnique({
+      where: { id: `offline_${shop}` },
+    });
+    if (!existingSession?.state || existingSession.state !== state) {
       return NextResponse.json({ error: "Invalid state/nonce" }, { status: 403 });
     }
 
@@ -60,11 +60,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Clear nonce cookie and redirect to dashboard
-    const response = NextResponse.redirect(new URL("/", request.url));
-    response.cookies.delete("shopify_oauth_nonce");
-
-    return response;
+    // Redirect to dashboard with shop param (cookies don't work in Shopify iframe)
+    const dashboardUrl = new URL("/", request.url);
+    dashboardUrl.searchParams.set("shop", shop);
+    return NextResponse.redirect(dashboardUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

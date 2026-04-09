@@ -17,7 +17,7 @@ export function getShopifyApi() {
       "write_inventory", "read_inventory",
       "write_files", "read_files",
     ],
-    hostName: process.env.SHOPIFY_APP_URL!.replace(/^https?:\/\//, ""),
+    hostName: process.env.SHOPIFY_APP_URL!.trim().replace(/^https?:\/\//, ""),
     apiVersion: ApiVersion.April26,
     isEmbeddedApp: false,
   });
