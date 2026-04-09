@@ -19,7 +19,7 @@ export class ShopifyClient {
           edges {
             node {
               id title bodyHtml vendor productType handle status
-              variants(first: 100) { edges { node { id title price sku weight weightUnit barcode } } }
+              variants(first: 100) { edges { node { id title price sku barcode } } }
               images(first: 20) { edges { node { id src: url altText } } }
             }
             cursor

@@ -15,8 +15,6 @@ export interface ShopifyVariant {
   title: string;
   price: string;
   sku: string;
-  weight: number;
-  weightUnit: "KILOGRAMS" | "GRAMS";
   barcode: string;
   inventoryQuantity?: number;
 }
