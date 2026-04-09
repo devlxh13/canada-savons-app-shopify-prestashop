@@ -1,16 +1,84 @@
-import { prisma } from "@/lib/db";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useState, useEffect, useCallback } from "react";
+import { FilterBar, FilterState } from "@/components/dashboard/filter-bar";
 
-export default async function LogsPage() {
-  const logs = await prisma.syncLog.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 100,
+interface SyncLog {
+  id: string;
+  jobId: string;
+  resourceType: string;
+  psId: string | null;
+  action: string;
+  details: unknown;
+  createdAt: string;
+}
+
+function dateRangeToSince(range: string): string {
+  const now = new Date();
+  switch (range) {
+    case "today": {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return start.toISOString();
+    }
+    case "7d": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      return d.toISOString();
+    }
+    case "30d": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      return d.toISOString();
+    }
+    default:
+      return "";
+  }
+}
+
+export default function LogsPage() {
+  const [logs, setLogs] = useState<SyncLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>({
+    dateRange: "7d",
+    resourceType: "all",
+    status: "all",
+    search: "",
   });
+
+  const fetchLogs = useCallback(async (f: FilterState) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set("limit", "100");
+
+    const since = dateRangeToSince(f.dateRange);
+    if (since) params.set("since", since);
+    if (f.resourceType !== "all") params.set("resourceType", f.resourceType);
+    if (f.status !== "all") params.set("action", f.status);
+    if (f.search) params.set("search", f.search);
+
+    try {
+      const res = await fetch(`/api/logs?${params.toString()}`);
+      const json = await res.json();
+      setLogs(json.data ?? []);
+    } catch {
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLogs(filters);
+  }, [fetchLogs, filters]);
+
+  function handleFilter(next: FilterState) {
+    setFilters(next);
+  }
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Sync Logs</h1>
+      <FilterBar onFilter={handleFilter} />
       <div className="rounded-md border">
         <table className="w-full text-sm">
           <thead>
@@ -24,7 +92,11 @@ export default async function LogsPage() {
             </tr>
           </thead>
           <tbody>
-            {logs.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="p-6 text-center text-muted-foreground">Chargement...</td>
+              </tr>
+            ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-6 text-center text-muted-foreground">No logs found.</td>
               </tr>

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { RetryBadge } from "@/components/dashboard/retry-badge";
 
 const nav = [
   { label: "Overview", href: "/" },
@@ -13,6 +14,7 @@ const nav = [
   { label: "Sync", href: "/sync" },
   { label: "Mapping", href: "/mapping" },
   { label: "Logs", href: "/logs" },
+  { label: "Retry", href: "/retry" },
   { label: "Settings", href: "/settings" },
 ];
 
@@ -31,13 +33,14 @@ function SidebarNav() {
           key={item.href}
           href={`${item.href}${extraParams}`}
           className={cn(
-            "block rounded-md px-3 py-2 text-sm transition-colors",
+            "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
             pathname === item.href
               ? "bg-primary text-primary-foreground"
               : "hover:bg-muted"
           )}
         >
           {item.label}
+          {item.href === "/retry" && <RetryBadge />}
         </Link>
       ))}
     </nav>

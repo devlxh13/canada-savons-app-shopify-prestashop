@@ -1,16 +1,82 @@
-import { prisma } from "@/lib/db";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useState, useEffect, useCallback } from "react";
+import { FilterBar, FilterState } from "@/components/dashboard/filter-bar";
 
-export default async function MappingPage() {
-  const mappings = await prisma.idMapping.findMany({
-    orderBy: { lastSyncedAt: "desc" },
-    take: 100,
+interface IdMapping {
+  id: string;
+  resourceType: string;
+  psId: string;
+  shopifyGid: string;
+  syncStatus: string;
+  lastSyncedAt: string;
+}
+
+function dateRangeToSince(range: string): string {
+  const now = new Date();
+  switch (range) {
+    case "today": {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return start.toISOString();
+    }
+    case "7d": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      return d.toISOString();
+    }
+    case "30d": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      return d.toISOString();
+    }
+    default:
+      return "";
+  }
+}
+
+export default function MappingPage() {
+  const [mappings, setMappings] = useState<IdMapping[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>({
+    dateRange: "7d",
+    resourceType: "all",
+    status: "all",
+    search: "",
   });
+
+  const fetchMappings = useCallback(async (f: FilterState) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set("limit", "100");
+
+    const since = dateRangeToSince(f.dateRange);
+    if (since) params.set("since", since);
+    if (f.resourceType !== "all") params.set("resourceType", f.resourceType);
+    if (f.search) params.set("search", f.search);
+
+    try {
+      const res = await fetch(`/api/mapping?${params.toString()}`);
+      const json = await res.json();
+      setMappings(json.data ?? []);
+    } catch {
+      setMappings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMappings(filters);
+  }, [fetchMappings, filters]);
+
+  function handleFilter(next: FilterState) {
+    setFilters(next);
+  }
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">ID Mappings</h1>
+      <FilterBar onFilter={handleFilter} showStatus={false} />
       <div className="rounded-md border">
         <table className="w-full text-sm">
           <thead>
@@ -23,7 +89,11 @@ export default async function MappingPage() {
             </tr>
           </thead>
           <tbody>
-            {mappings.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-muted-foreground">Chargement...</td>
+              </tr>
+            ) : mappings.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-6 text-center text-muted-foreground">No mappings found.</td>
               </tr>

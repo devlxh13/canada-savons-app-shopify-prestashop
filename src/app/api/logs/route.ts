@@ -9,10 +9,15 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get("limit") ?? "50");
   const offset = parseInt(searchParams.get("offset") ?? "0");
 
+  const since = searchParams.get("since");
+  const search = searchParams.get("search");
+
   const where: Record<string, unknown> = {};
   if (jobId) where.jobId = jobId;
   if (resourceType) where.resourceType = resourceType;
   if (action) where.action = action;
+  if (since) where.createdAt = { gte: new Date(since) };
+  if (search) where.jobId = { contains: search };
 
   const [logs, total] = await Promise.all([
     prisma.syncLog.findMany({ where, orderBy: { createdAt: "desc" }, take: limit, skip: offset }),
