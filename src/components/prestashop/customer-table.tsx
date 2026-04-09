@@ -12,7 +12,11 @@ interface PSCustomerRow {
   date_add: string;
 }
 
-export function CustomerTable() {
+interface CustomerTableProps {
+  onSelectCustomer?: (c: { psId: number }) => void;
+}
+
+export function CustomerTable({ onSelectCustomer }: CustomerTableProps) {
   const [customers, setCustomers] = useState<PSCustomerRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -52,7 +56,7 @@ export function CustomerTable() {
             {loading ? (
               <tr><td colSpan={5} className="p-3 text-center text-muted-foreground">Loading...</td></tr>
             ) : customers.map((c) => (
-              <tr key={c.id} className="border-b">
+              <tr key={c.id} className="border-b cursor-pointer hover:bg-muted/50" onClick={() => onSelectCustomer?.({ psId: c.id })}>
                 <td className="p-3">{c.id}</td>
                 <td className="p-3">{c.firstname}</td>
                 <td className="p-3">{c.lastname}</td>
