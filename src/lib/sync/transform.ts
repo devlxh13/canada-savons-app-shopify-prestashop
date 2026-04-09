@@ -1,4 +1,4 @@
-import type { PSProduct, PSCustomer, PSMultiLangValue } from "@/lib/prestashop/types";
+import type { PSProduct, PSCustomer, PSOrder, PSMultiLangValue } from "@/lib/prestashop/types";
 
 function getLangValue(values: PSMultiLangValue[], langId: number): string {
   return values.find((v) => v.id === String(langId))?.value ?? values[0]?.value ?? "";
@@ -31,5 +31,23 @@ export function transformCustomer(ps: PSCustomer) {
     firstName: ps.firstname,
     lastName: ps.lastname,
     email: ps.email,
+  };
+}
+
+export function transformOrder(
+  order: PSOrder,
+  customerGid: string,
+  lineItems: { variantId: string; quantity: number }[],
+  shippingAddress?: Record<string, string>,
+  billingAddress?: Record<string, string>
+) {
+  return {
+    customerId: customerGid,
+    lineItems,
+    shippingAddress,
+    billingAddress,
+    financialStatus: "PAID",
+    note: `Imported from PrestaShop — Ref: ${order.reference}`,
+    tags: ["prestashop-import"],
   };
 }
