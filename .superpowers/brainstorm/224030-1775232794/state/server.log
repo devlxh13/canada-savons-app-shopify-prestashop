@@ -1,0 +1,3 @@
+{"type":"server-started","port":55553,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:55553","screen_dir":"/home/kevin/GITHUB/WILEM/canada-savons-app-shopify-prestashop/.superpowers/brainstorm/224030-1775232794/content","state_dir":"/home/kevin/GITHUB/WILEM/canada-savons-app-shopify-prestashop/.superpowers/brainstorm/224030-1775232794/state"}
+{"type":"screen-added","file":"/home/kevin/GITHUB/WILEM/canada-savons-app-shopify-prestashop/.superpowers/brainstorm/224030-1775232794/content/product-table-layout.html"}
+{"type":"server-stopped","reason":"owner process exited"}

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const graphqlClient = new shopify.clients.Graphql({ session: session as any });
-    const shopifyClient = new ShopifyClient(graphqlClient);
+    const shopifyClient = new ShopifyClient(graphqlClient as any);
     const ps = getPSConnector();
     const engine = new SyncEngine(ps, shopifyClient, prisma);
 

@@ -20,7 +20,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
-    "inngest": "^4.1.1",
     "jose": "^6.2.2",
     "lucide-react": "^1.7.0",
     "mysql2": "^3.20.0",

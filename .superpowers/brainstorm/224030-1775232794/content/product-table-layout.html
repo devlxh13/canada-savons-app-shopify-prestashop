@@ -1,0 +1,135 @@
+<h2>Page Produits — Quel layout préfères-tu ?</h2>
+<p class="subtitle">La page doit montrer plus d'infos : image, statut sync, langue, catégorie, filtres</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Tableau enrichi + barre de filtres</h3>
+      <p>Le tableau actuel est amélioré avec des colonnes supplémentaires (thumbnail, statut sync, catégorie) et une barre de filtres au-dessus (statut actif/inactif, langue FR/EN, synced/not synced, catégorie).</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Aperçu — Tableau enrichi</div>
+        <div class="mockup-body" style="font-size:12px;padding:8px">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Statut: Tous ▾</div>
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Langue: EN ▾</div>
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Sync: Tous ▾</div>
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Catégorie: Toutes ▾</div>
+            <div style="flex:1"></div>
+            <div style="padding:4px 10px;background:#222;border:1px solid #444;border-radius:4px;font-size:11px">🔍 Rechercher...</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <tr style="border-bottom:1px solid #333;color:#888">
+              <th style="padding:6px;text-align:left">☐</th>
+              <th style="padding:6px;text-align:left">Image</th>
+              <th style="padding:6px;text-align:left">Nom</th>
+              <th style="padding:6px;text-align:left">Réf</th>
+              <th style="padding:6px;text-align:left">Prix</th>
+              <th style="padding:6px;text-align:left">Catégorie</th>
+              <th style="padding:6px;text-align:left">Statut</th>
+              <th style="padding:6px;text-align:left">Sync</th>
+            </tr>
+            <tr style="border-bottom:1px solid #222">
+              <td style="padding:6px">☐</td>
+              <td style="padding:6px"><div style="width:36px;height:36px;background:#444;border-radius:4px"></div></td>
+              <td style="padding:6px">Foot Cream - 150ml</td>
+              <td style="padding:6px;font-family:monospace;font-size:10px">M26037</td>
+              <td style="padding:6px">39.00$</td>
+              <td style="padding:6px;font-size:10px">Soins corps</td>
+              <td style="padding:6px"><span style="background:#166534;color:#4ade80;padding:2px 6px;border-radius:10px;font-size:10px">Active</span></td>
+              <td style="padding:6px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 6px;border-radius:10px;font-size:10px">✓ Synced</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #222">
+              <td style="padding:6px">☐</td>
+              <td style="padding:6px"><div style="width:36px;height:36px;background:#444;border-radius:4px"></div></td>
+              <td style="padding:6px">Bougie parfumée - Patchouli</td>
+              <td style="padding:6px;font-family:monospace;font-size:10px">M31060</td>
+              <td style="padding:6px">24.99$</td>
+              <td style="padding:6px;font-size:10px">Bougies</td>
+              <td style="padding:6px"><span style="background:#333;color:#888;padding:2px 6px;border-radius:10px;font-size:10px">Inactive</span></td>
+              <td style="padding:6px"><span style="color:#666;font-size:10px">—</span></td>
+            </tr>
+          </table>
+          <div style="margin-top:8px;display:flex;justify-content:space-between;color:#666;font-size:10px">
+            <span>☐ sélectionnés → Sync to Shopify</span>
+            <span>1–25 sur 1135</span>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pros</h4><ul><li>Vue d'ensemble rapide</li><li>Sélection multiple → sync en batch</li><li>Filtres puissants</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Beaucoup d'infos dans un tableau</li><li>Thumbnail petit</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Grille de cartes + filtres</h3>
+      <p>Chaque produit est une carte avec image plus grande, nom, prix, badges statut/sync. Même barre de filtres. Moins de colonnes visibles mais plus visuel.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Aperçu — Grille de cartes</div>
+        <div class="mockup-body" style="font-size:12px;padding:8px">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Statut: Tous ▾</div>
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Langue: EN ▾</div>
+            <div style="padding:4px 10px;background:#333;border-radius:4px;font-size:11px">Sync: Tous ▾</div>
+            <div style="flex:1"></div>
+            <div style="padding:4px 10px;background:#222;border:1px solid #444;border-radius:4px;font-size:11px">🔍 Rechercher...</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            <div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;overflow:hidden">
+              <div style="height:80px;background:#333"></div>
+              <div style="padding:8px">
+                <div style="font-size:11px;font-weight:600">Foot Cream - 150ml</div>
+                <div style="font-size:10px;color:#888;margin-top:2px">M26037 · 39.00$</div>
+                <div style="margin-top:6px;display:flex;gap:4px">
+                  <span style="background:#166534;color:#4ade80;padding:1px 6px;border-radius:10px;font-size:9px">Active</span>
+                  <span style="background:#1e3a5f;color:#60a5fa;padding:1px 6px;border-radius:10px;font-size:9px">✓ Synced</span>
+                </div>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;overflow:hidden">
+              <div style="height:80px;background:#333"></div>
+              <div style="padding:8px">
+                <div style="font-size:11px;font-weight:600">Bougie - Patchouli</div>
+                <div style="font-size:10px;color:#888;margin-top:2px">M31060 · 24.99$</div>
+                <div style="margin-top:6px;display:flex;gap:4px">
+                  <span style="background:#333;color:#888;padding:1px 6px;border-radius:10px;font-size:9px">Inactive</span>
+                </div>
+              </div>
+            </div>
+            <div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;overflow:hidden">
+              <div style="height:80px;background:#333"></div>
+              <div style="padding:8px">
+                <div style="font-size:11px;font-weight:600">Savon de Marseille</div>
+                <div style="font-size:10px;color:#888;margin-top:2px">M10001 · 5.50$</div>
+                <div style="margin-top:6px;display:flex;gap:4px">
+                  <span style="background:#166534;color:#4ade80;padding:1px 6px;border-radius:10px;font-size:9px">Active</span>
+                  <span style="background:#1e3a5f;color:#60a5fa;padding:1px 6px;border-radius:10px;font-size:9px">✓ Synced</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pros</h4><ul><li>Plus visuel, images mises en avant</li><li>Clair et aéré</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Moins de produits visibles par page</li><li>Sélection batch moins intuitive</li><li>Moins de colonnes de données</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Tableau enrichi + panneau détail</h3>
+      <p>Comme A, mais quand tu cliques sur un produit, un panneau latéral s'ouvre avec l'image grande, toutes les infos détaillées, les variantes, le statut sync, et un bouton "Sync this product".</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pros</h4><ul><li>Vue liste efficace + détail riche</li><li>Le meilleur des deux mondes</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Plus complexe à implémenter</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
