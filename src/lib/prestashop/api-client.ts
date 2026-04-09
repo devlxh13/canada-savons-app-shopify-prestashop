@@ -52,8 +52,14 @@ export class PSApiClient {
     if (!id && filters?.display) params.set("display", filters.display);
     if (!id && !filters?.display) params.set("display", "full");
 
-    if (filters?.limit) params.set("limit", String(filters.limit));
-    if (filters?.offset) params.set("index", String(filters.offset));
+    if (filters?.limit) {
+      // PS API uses limit=offset,count format for pagination
+      if (filters.offset) {
+        params.set("limit", `${filters.offset},${filters.limit}`);
+      } else {
+        params.set("limit", String(filters.limit));
+      }
+    }
     if (filters?.sort) params.set("sort", filters.sort);
     if (filters?.filter) {
       for (const [key, value] of Object.entries(filters.filter)) {

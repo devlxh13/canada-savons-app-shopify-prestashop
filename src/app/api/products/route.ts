@@ -8,33 +8,55 @@ function getLangValue(values: { id: string; value: string }[], langId: string): 
   return values?.find((v) => v.id === langId)?.value ?? "";
 }
 
+// Cache categories in memory (they rarely change)
+let categoryCache: Record<string, string> | null = null;
+let categoryCacheTime = 0;
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+async function getCategoryLookup(ps: ReturnType<typeof getPSConnector>): Promise<Record<string, string>> {
+  if (categoryCache && Date.now() - categoryCacheTime < CACHE_TTL) {
+    return categoryCache;
+  }
+  const rawCategories = await ps.list<PSCategory>("categories", { display: "full" });
+  const lookup: Record<string, string> = {};
+  for (const cat of rawCategories) {
+    lookup[String(cat.id)] = getLangValue(cat.name, FR_LANG_ID);
+  }
+  categoryCache = lookup;
+  categoryCacheTime = Date.now();
+  return lookup;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const limit = parseInt(searchParams.get("limit") ?? "25");
   const offset = parseInt(searchParams.get("offset") ?? "0");
   const search = searchParams.get("search") ?? "";
   const status = searchParams.get("status") ?? "all";
-  const category = searchParams.get("category") ?? "all";
-  const stock = searchParams.get("stock") ?? "all";
-  const image = searchParams.get("image") ?? "all";
 
   try {
     const ps = getPSConnector();
 
-    // Fetch products and categories from PrestaShop API
-    const [rawProducts, rawCategories] = await Promise.all([
-      ps.list<PSProduct>("products", { display: "full" }),
-      ps.list<PSCategory>("categories", { display: "full" }),
+    // Build PS API filters for server-side filtering
+    const filters: Record<string, unknown> = {
+      display: "full",
+      limit,
+      offset,
+    };
+
+    // Push filters to PS API where possible
+    const psFilter: Record<string, string> = {};
+    if (search) psFilter.name = `%[${search}]%`;
+    if (status === "active") psFilter.active = "1";
+    if (status === "inactive") psFilter.active = "0";
+    if (Object.keys(psFilter).length > 0) (filters as any).filter = psFilter;
+
+    const [rawProducts, catLookup] = await Promise.all([
+      ps.list<PSProduct>("products", filters as any),
+      getCategoryLookup(ps),
     ]);
 
-    // Build category lookup (FR)
-    const catLookup: Record<string, string> = {};
-    for (const cat of rawCategories) {
-      catLookup[String(cat.id)] = getLangValue(cat.name, FR_LANG_ID);
-    }
-
-    // Transform to FR-only flat objects
-    let products = rawProducts.map((p) => {
+    const products = rawProducts.map((p) => {
       const catIds = p.associations?.categories ?? [];
       const categoryTags: string[] = [];
       for (const catRef of catIds) {
@@ -57,7 +79,7 @@ export async function GET(request: NextRequest) {
         nameFr: getLangValue(p.name, FR_LANG_ID) || null,
         descriptionShortFr: getLangValue(p.description_short, FR_LANG_ID) || null,
         priceHT: parseFloat(p.price),
-        stockAvailable: 0, // stock not fetched here for speed
+        stockAvailable: 0,
         categoryDefault: catLookup[p.id_category_default] || null,
         categoryTags,
         imageDefault,
@@ -65,27 +87,9 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Apply filters
-    if (search) {
-      const q = search.toLowerCase();
-      products = products.filter(
-        (p) =>
-          p.nameFr?.toLowerCase().includes(q) ||
-          p.reference?.toLowerCase().includes(q)
-      );
-    }
-    if (status === "active") products = products.filter((p) => p.active);
-    if (status === "inactive") products = products.filter((p) => !p.active);
-    if (category !== "all") products = products.filter((p) => p.categoryTags.includes(category));
-    if (image === "with") products = products.filter((p) => p.imageDefault !== null);
-    if (image === "without") products = products.filter((p) => p.imageDefault === null);
-
-    const total = products.length;
-    const paginated = products.slice(offset, offset + limit);
-
     return NextResponse.json({
-      data: paginated,
-      total,
+      data: products,
+      total: products.length,
       limit,
       offset,
     });
