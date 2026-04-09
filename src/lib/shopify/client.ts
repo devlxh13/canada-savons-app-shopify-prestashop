@@ -254,4 +254,47 @@ export class ShopifyClient {
     }
     return result.order!;
   }
+
+  async setInventory(productGid: string, quantity: number): Promise<void> {
+    // Get variant's inventoryItem ID
+    const { data: prodData } = await this.graphql.request(
+      `query getInventoryItem($id: ID!) {
+        product(id: $id) {
+          variants(first: 1) {
+            edges { node { inventoryItem { id } } }
+          }
+        }
+      }`,
+      { variables: { id: productGid } }
+    );
+    const product = prodData.product as { variants: { edges: { node: { inventoryItem: { id: string } } }[] } };
+    const inventoryItemId = product.variants.edges[0]?.node?.inventoryItem?.id;
+    if (!inventoryItemId) return;
+
+    // Get first location
+    const { data: locData } = await this.graphql.request(
+      `query { locations(first: 1) { edges { node { id } } } }`
+    );
+    const locations = locData.locations as { edges: { node: { id: string } }[] };
+    const locationId = locations.edges[0]?.node?.id;
+    if (!locationId) return;
+
+    // Set inventory quantity
+    await this.graphql.request(
+      `mutation inventorySetQuantities($input: InventorySetQuantitiesInput!) {
+        inventorySetQuantities(input: $input) {
+          userErrors { field message }
+        }
+      }`,
+      {
+        variables: {
+          input: {
+            reason: "correction",
+            name: "available",
+            quantities: [{ inventoryItemId, locationId, quantity }],
+          },
+        },
+      }
+    );
+  }
 }

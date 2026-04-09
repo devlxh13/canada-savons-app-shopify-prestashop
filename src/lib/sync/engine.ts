@@ -16,7 +16,7 @@ export class SyncEngine {
   async syncSingleProduct(psId: number, jobId: string): Promise<SyncResult> {
     try {
       const psProduct = await this.ps.get<PSProduct>("products", psId);
-      const transformed = transformProduct(psProduct, 2);
+      const transformed = transformProduct(psProduct);
       const hash = contentHash(transformed);
 
       const existing = await (this.prisma as any).idMapping.findUnique({
@@ -52,6 +52,18 @@ export class SyncEngine {
           shopifyGid = created.id;
           action = "create";
         }
+      }
+
+      // Sync inventory from PrestaShop
+      try {
+        const stocks = await this.ps.list<{ id_product: string; quantity: string }>(
+          "stock_availables",
+          { display: "full", filter: { id_product: String(psId) } }
+        );
+        const totalStock = stocks.reduce((sum, s) => sum + parseInt(s.quantity || "0"), 0);
+        await this.shopify.setInventory(shopifyGid, totalStock);
+      } catch {
+        // Stock sync failure is non-fatal
       }
 
       await (this.prisma as any).idMapping.upsert({

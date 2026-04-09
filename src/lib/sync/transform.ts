@@ -4,7 +4,7 @@ function getLangValue(values: PSMultiLangValue[], langId: number): string {
   return values.find((v) => v.id === String(langId))?.value ?? values[0]?.value ?? "";
 }
 
-export function transformProduct(ps: PSProduct, langId: number = 2) {
+export function transformProduct(ps: PSProduct, langId: number = 1) {
   return {
     product: {
       title: getLangValue(ps.name, langId),

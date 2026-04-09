@@ -42,10 +42,10 @@ describe("transformProduct", () => {
       },
     };
 
-    const result = transformProduct(psProduct, 2);
+    const result = transformProduct(psProduct);
 
-    expect(result.product.title).toBe("Foot Cream - 150ml");
-    expect(result.product.descriptionHtml).toBe("<p>Description EN</p>");
+    expect(result.product.title).toBe("Crème Pieds - 150ml");
+    expect(result.product.descriptionHtml).toBe("<p>Description FR</p>");
     expect(result.product.vendor).toBe("La Maison du Savon de Marseille");
     expect(result.product.status).toBe("ACTIVE");
     expect(result.variant.price).toBe("39.00");
