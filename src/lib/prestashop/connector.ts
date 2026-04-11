@@ -3,7 +3,7 @@ import type { PSApiClient } from "./api-client";
 import type { PSDbClient } from "./db-client";
 
 type DbListMethod = "listProducts" | "listCustomers" | "listOrders";
-type DbGetMethod = "getProduct";
+type DbGetMethod = "getProduct" | "getCustomer";
 
 const DB_LIST_MAP: Partial<Record<PSResourceType, DbListMethod>> = {
   products: "listProducts",
@@ -13,6 +13,7 @@ const DB_LIST_MAP: Partial<Record<PSResourceType, DbListMethod>> = {
 
 const DB_GET_MAP: Partial<Record<PSResourceType, DbGetMethod>> = {
   products: "getProduct",
+  customers: "getCustomer",
 };
 
 export class PSConnector {

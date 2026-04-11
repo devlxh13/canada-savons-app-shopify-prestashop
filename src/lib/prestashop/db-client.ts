@@ -84,6 +84,17 @@ export class PSDbClient {
     return rows as Record<string, unknown>[];
   }
 
+  async getCustomer(id: number): Promise<Record<string, unknown> | null> {
+    const [rows] = await this.pool.query(
+      `SELECT id_customer as id, firstname, lastname, email, active, date_add, date_upd
+       FROM ps_customer
+       WHERE deleted = 0 AND id_customer = ?`,
+      [id]
+    );
+    const results = rows as Record<string, unknown>[];
+    return results[0] ?? null;
+  }
+
   async listOrders(filters: PSDbFilters = {}): Promise<Record<string, unknown>[]> {
     const limit = filters.limit ?? 50;
     const offset = filters.offset ?? 0;
