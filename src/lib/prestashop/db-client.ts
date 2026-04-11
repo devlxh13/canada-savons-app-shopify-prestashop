@@ -95,6 +95,33 @@ export class PSDbClient {
     return results[0] ?? null;
   }
 
+  async getOrder(id: number): Promise<Record<string, unknown> | null> {
+    const [headerRows] = await this.pool.query(
+      `SELECT id_order as id, id_customer, id_cart, id_currency, current_state,
+              payment, total_paid, total_paid_tax_incl, total_paid_tax_excl,
+              total_shipping, total_products, date_add, date_upd, reference
+       FROM ps_orders
+       WHERE id_order = ?`,
+      [id]
+    );
+    const header = (headerRows as Record<string, unknown>[])[0];
+    if (!header) return null;
+
+    const [detailRows] = await this.pool.query(
+      `SELECT id_order_detail as id, product_id, product_quantity,
+              product_price, product_name,
+              unit_price_tax_incl, unit_price_tax_excl
+       FROM ps_order_detail
+       WHERE id_order = ?`,
+      [id]
+    );
+
+    return {
+      ...header,
+      associations: { order_rows: detailRows as Record<string, unknown>[] },
+    };
+  }
+
   async listOrders(filters: PSDbFilters = {}): Promise<Record<string, unknown>[]> {
     const limit = filters.limit ?? 50;
     const offset = filters.offset ?? 0;

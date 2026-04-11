@@ -66,6 +66,71 @@ describe("PSDbClient", () => {
     });
   });
 
+  describe("getOrder", () => {
+    it("returns null when the order header is missing", async () => {
+      mockPool.query.mockResolvedValueOnce([[]]);
+
+      const result = await client.getOrder(999);
+
+      expect(result).toBeNull();
+    });
+
+    it("returns a PSOrder-shaped object with associations.order_rows", async () => {
+      const header = {
+        id: 5128,
+        id_customer: "42",
+        id_cart: "1",
+        id_currency: "2",
+        current_state: "5",
+        payment: "Cheque",
+        total_paid: "94.240000",
+        total_paid_tax_incl: "94.240000",
+        total_paid_tax_excl: "81.960000",
+        total_shipping: "13.800000",
+        total_products: "69.960000",
+        date_add: "2020-05-01 20:25:39",
+        date_upd: "2020-05-05 12:00:00",
+        reference: "JORAAGVOR",
+      };
+      const rows = [
+        {
+          id: "13409",
+          product_id: "448",
+          product_quantity: "1",
+          product_price: "39.990000",
+          product_name: "Porte Savon Mural",
+          unit_price_tax_incl: "45.978503",
+          unit_price_tax_excl: "39.990000",
+        },
+      ];
+      mockPool.query.mockResolvedValueOnce([[header]]);
+      mockPool.query.mockResolvedValueOnce([rows]);
+
+      const result = await client.getOrder(5128);
+
+      expect(result).toMatchObject({
+        id: 5128,
+        reference: "JORAAGVOR",
+        total_paid: "94.240000",
+        date_add: "2020-05-01 20:25:39",
+      });
+      const assoc = (result as Record<string, unknown>).associations as { order_rows: unknown };
+      expect(assoc.order_rows).toEqual(rows);
+    });
+
+    it("queries ps_orders and ps_order_detail", async () => {
+      mockPool.query.mockResolvedValueOnce([[{ id: 1, reference: "X" }]]);
+      mockPool.query.mockResolvedValueOnce([[]]);
+
+      await client.getOrder(1);
+
+      const headerSql = mockPool.query.mock.calls[0][0];
+      const detailSql = mockPool.query.mock.calls[1][0];
+      expect(headerSql).toContain("ps_orders");
+      expect(detailSql).toContain("ps_order_detail");
+    });
+  });
+
   describe("getCustomer", () => {
     it("queries a single customer by ID and returns PSCustomer-shaped row", async () => {
       const mockRow = {
