@@ -55,7 +55,16 @@ export async function POST(request: NextRequest) {
     // Batch sync
     const filters: Record<string, unknown> = { limit: batchSize, offset };
     if (resourceType === "orders") {
-      (filters as any).filter = { current_state: "5" };
+      // PS_ORDER_SYNC_STATES is a comma-separated list of PS current_state IDs
+      // to import. Defaults to '4,5' (Shipped + Delivered) so the auto-sync
+      // covers more than just delivered orders without going as far as paid.
+      // PrestaShop REST filter syntax for OR is `[a|b|c]`.
+      const states = (process.env.PS_ORDER_SYNC_STATES || "4,5")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const filterValue = states.length === 1 ? states[0] : `[${states.join("|")}]`;
+      (filters as any).filter = { current_state: filterValue };
     }
 
     const items = await ps.list<{ id: number }>(resourceType as any, filters as any);
