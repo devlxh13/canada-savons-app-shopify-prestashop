@@ -1,15 +1,18 @@
 // src/app/api/sync/retry/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPSConnector } from "@/lib/prestashop/registry";
 import { shopify } from "@/lib/shopify/auth";
 import { ShopifyClient } from "@/lib/shopify/client";
 import { SyncEngine } from "@/lib/sync/engine";
 import { prisma } from "@/lib/db";
 import { computeDeferredNextRetry, DEFERRED_MAX_ATTEMPTS } from "@/lib/sync/retry";
+import { requireAuth } from "@/lib/auth";
 
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   const now = new Date();
   const pending = await (prisma as any).retryQueue.findMany({
     where: {

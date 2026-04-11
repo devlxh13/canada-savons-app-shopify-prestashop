@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPSConnector } from "@/lib/prestashop/registry";
 import { prisma } from "@/lib/db";
 import type { PSCategory } from "@/lib/prestashop/types";
+import { requireAuth } from "@/lib/auth";
 
 function getLangValue(values: { id: string; value: string }[], langId: string): string {
   return values?.find((v) => v.id === langId)?.value ?? "";
@@ -11,7 +12,9 @@ function getLangValue(values: { id: string; value: string }[], langId: string): 
  * One-shot endpoint: map English category names → French in local DB.
  * Only fetches categories from PrestaShop (fast), then rewrites local DB.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   try {
     const ps = getPSConnector();
 

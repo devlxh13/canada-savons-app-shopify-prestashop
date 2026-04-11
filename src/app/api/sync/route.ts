@@ -6,10 +6,13 @@ import { ShopifyClient } from "@/lib/shopify/client";
 import { SyncEngine } from "@/lib/sync/engine";
 import { recordSyncStats } from "@/lib/sync/stats";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   const body = await request.json().catch(() => null);
   const searchParams = request.nextUrl.searchParams;
 

@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { buildCategoryLookup, buildStockLookup, syncProductBatch, deleteStaleProducts, logSyncComplete } from "@/lib/sync/local-sync";
 import { getPSConnector } from "@/lib/prestashop/registry";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 const BATCH_SIZE = 50;
 
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleSync(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   const searchParams = request.nextUrl.searchParams;
   const offset = parseInt(searchParams.get("offset") ?? "0");
   const jobId = searchParams.get("jobId") ?? `local-sync-${Date.now()}`;

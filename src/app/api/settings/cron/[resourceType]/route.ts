@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { computeNextRun } from "@/lib/cron/schedule";
+import { requireAuth } from "@/lib/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ resourceType: string }> }
 ) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   const { resourceType } = await params;
   const body = await request.json();
   const { cronExpression, enabled } = body;
@@ -37,6 +40,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ resourceType: string }> }
 ) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   const { resourceType } = await params;
   const baseUrl = request.nextUrl.origin;
   const jobId = `manual-${resourceType}-${Date.now()}`;
