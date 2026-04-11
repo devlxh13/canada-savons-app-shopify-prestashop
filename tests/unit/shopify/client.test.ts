@@ -75,6 +75,48 @@ describe("ShopifyClient", () => {
       expect(options.variables.order.processedAt).toBeUndefined();
       expect(options.variables.order.fulfillmentStatus).toBeUndefined();
     });
+
+    it("forwards currency, taxesIncluded and priceSet on line items", async () => {
+      await client.createOrder({
+        ...baseInput,
+        currency: "CAD",
+        taxesIncluded: true,
+        lineItems: [
+          {
+            variantId: "gid://shopify/ProductVariant/10",
+            quantity: 2,
+            priceSet: { shopMoney: { amount: "45.978503", currencyCode: "CAD" } },
+          },
+        ],
+      });
+
+      const [, options] = mockGraphqlClient.request.mock.calls[0];
+      expect(options.variables.order.currency).toBe("CAD");
+      expect(options.variables.order.taxesIncluded).toBe(true);
+      expect(options.variables.order.lineItems[0].priceSet).toEqual({
+        shopMoney: { amount: "45.978503", currencyCode: "CAD" },
+      });
+    });
+
+    it("forwards shippingLines to the orderCreate input", async () => {
+      await client.createOrder({
+        ...baseInput,
+        shippingLines: [
+          {
+            title: "PrestaShop Shipping",
+            priceSet: { shopMoney: { amount: "13.800000", currencyCode: "CAD" } },
+          },
+        ],
+      });
+
+      const [, options] = mockGraphqlClient.request.mock.calls[0];
+      expect(options.variables.order.shippingLines).toEqual([
+        {
+          title: "PrestaShop Shipping",
+          priceSet: { shopMoney: { amount: "13.800000", currencyCode: "CAD" } },
+        },
+      ]);
+    });
   });
 
   describe("createProduct", () => {

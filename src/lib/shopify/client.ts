@@ -214,7 +214,11 @@ export class ShopifyClient {
 
   async createOrder(input: {
     customerId: string;
-    lineItems: { variantId: string; quantity: number }[];
+    lineItems: {
+      variantId: string;
+      quantity: number;
+      priceSet?: { shopMoney: { amount: string; currencyCode: string } };
+    }[];
     billingAddress?: Record<string, string>;
     shippingAddress?: Record<string, string>;
     financialStatus: string;
@@ -222,6 +226,12 @@ export class ShopifyClient {
     tags: string[];
     processedAt?: string;
     fulfillmentStatus?: "FULFILLED" | "PARTIAL" | "RESTOCKED";
+    currency?: string;
+    taxesIncluded?: boolean;
+    shippingLines?: {
+      title: string;
+      priceSet: { shopMoney: { amount: string; currencyCode: string } };
+    }[];
   }): Promise<{ id: string }> {
     const { data } = await this.graphql.request(
       `mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -242,6 +252,9 @@ export class ShopifyClient {
             tags: input.tags,
             ...(input.processedAt && { processedAt: input.processedAt }),
             ...(input.fulfillmentStatus && { fulfillmentStatus: input.fulfillmentStatus }),
+            ...(input.currency && { currency: input.currency }),
+            ...(input.taxesIncluded !== undefined && { taxesIncluded: input.taxesIncluded }),
+            ...(input.shippingLines && { shippingLines: input.shippingLines }),
           },
           options: { inventoryBehaviour: "BYPASS" },
         },

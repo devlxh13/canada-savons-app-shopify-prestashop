@@ -85,6 +85,8 @@ export interface PSOrder {
       product_quantity: string;
       product_price: string;
       product_name: string;
+      unit_price_tax_incl: string;
+      unit_price_tax_excl: string;
     }[];
   };
 }

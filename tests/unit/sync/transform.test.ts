@@ -104,7 +104,13 @@ describe("transformOrder", () => {
     date_upd: "2026-01-05 14:00:00",
     reference: "JORAAGVOR",
   };
-  const lineItems = [{ variantId: "gid://shopify/ProductVariant/1", quantity: 2 }];
+  const lineItems = [
+    {
+      variantId: "gid://shopify/ProductVariant/1",
+      quantity: 2,
+      unitPriceTaxIncl: "45.978503",
+    },
+  ];
   const customerGid = "gid://shopify/Customer/99";
 
   it("backdates the order using PS date_add as processedAt ISO", () => {
@@ -141,6 +147,43 @@ describe("transformOrder", () => {
     expect(result.note).toBe("Imported from PrestaShop — Ref: JORAAGVOR");
     expect(result.tags).toEqual(["prestashop-import"]);
     expect(result.customerId).toBe(customerGid);
-    expect(result.lineItems).toBe(lineItems);
+  });
+
+  it("builds line items with priceSet from unit_price_tax_incl", () => {
+    const result = transformOrder(baseOrder, customerGid, lineItems);
+    expect(result.lineItems).toEqual([
+      {
+        variantId: "gid://shopify/ProductVariant/1",
+        quantity: 2,
+        priceSet: {
+          shopMoney: { amount: "45.978503", currencyCode: "CAD" },
+        },
+      },
+    ]);
+  });
+
+  it("declares currency=CAD and taxesIncluded=true on the order", () => {
+    const result = transformOrder(baseOrder, customerGid, lineItems);
+    expect(result.currency).toBe("CAD");
+    expect(result.taxesIncluded).toBe(true);
+  });
+
+  it("adds shippingLines when total_shipping > 0", () => {
+    const order = { ...baseOrder, total_shipping: "13.800000" };
+    const result = transformOrder(order, customerGid, lineItems);
+    expect(result.shippingLines).toEqual([
+      {
+        title: "PrestaShop Shipping",
+        priceSet: {
+          shopMoney: { amount: "13.800000", currencyCode: "CAD" },
+        },
+      },
+    ]);
+  });
+
+  it("omits shippingLines when total_shipping is 0", () => {
+    const order = { ...baseOrder, total_shipping: "0.000000" };
+    const result = transformOrder(order, customerGid, lineItems);
+    expect(result.shippingLines).toBeUndefined();
   });
 });

@@ -38,16 +38,29 @@ export function transformCustomer(ps: PSCustomer) {
 // Standard PrestaShop install: 4=Shipped, 5=Delivered.
 const PS_FULFILLED_STATES = new Set(["4", "5"]);
 
+// Both PS and Shopify shop operate in CAD — no conversion needed.
+const ORDER_CURRENCY = "CAD" as const;
+
 function psDateToISO(psDate: string): string | undefined {
   if (!psDate) return undefined;
   const d = new Date(`${psDate.replace(" ", "T")}Z`);
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
+function money(amount: string) {
+  return { shopMoney: { amount, currencyCode: ORDER_CURRENCY } };
+}
+
+export interface PsOrderLineItem {
+  variantId: string;
+  quantity: number;
+  unitPriceTaxIncl: string;
+}
+
 export function transformOrder(
   order: PSOrder,
   customerGid: string,
-  lineItems: { variantId: string; quantity: number }[],
+  lineItems: PsOrderLineItem[],
   shippingAddress?: Record<string, string>,
   billingAddress?: Record<string, string>
 ) {
@@ -56,9 +69,22 @@ export function transformOrder(
     ? ("FULFILLED" as const)
     : undefined;
 
+  const shopifyLineItems = lineItems.map((li) => ({
+    variantId: li.variantId,
+    quantity: li.quantity,
+    priceSet: money(li.unitPriceTaxIncl),
+  }));
+
+  const shippingAmount = parseFloat(order.total_shipping || "0");
+  const shippingLines = shippingAmount > 0
+    ? [{ title: "PrestaShop Shipping", priceSet: money(order.total_shipping) }]
+    : undefined;
+
   return {
     customerId: customerGid,
-    lineItems,
+    currency: ORDER_CURRENCY,
+    taxesIncluded: true,
+    lineItems: shopifyLineItems,
     shippingAddress,
     billingAddress,
     financialStatus: "PAID",
@@ -66,5 +92,6 @@ export function transformOrder(
     tags: ["prestashop-import"],
     ...(processedAt && { processedAt }),
     ...(fulfillmentStatus && { fulfillmentStatus }),
+    ...(shippingLines && { shippingLines }),
   };
 }

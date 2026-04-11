@@ -3,7 +3,7 @@ import type { ShopifyClient } from "@/lib/shopify/client";
 import type { PrismaClient } from "@prisma/client";
 import type { PSProduct, PSCustomer, PSOrder, PSAddress } from "@/lib/prestashop/types";
 import type { SyncResult } from "./types";
-import { transformProduct, transformCustomer, transformOrder } from "./transform";
+import { transformProduct, transformCustomer, transformOrder, type PsOrderLineItem } from "./transform";
 import { contentHash } from "./hash";
 import { withImmediateRetry, computeDeferredNextRetry } from "./retry";
 
@@ -162,7 +162,7 @@ export class SyncEngine {
 
       // Auto-resolve products from order rows and get variant GIDs
       const orderRows = psOrder.associations?.order_rows ?? [];
-      const lineItems: { variantId: string; quantity: number }[] = [];
+      const lineItems: PsOrderLineItem[] = [];
 
       for (const row of orderRows) {
         const productPsId = parseInt(row.product_id);
@@ -174,6 +174,7 @@ export class SyncEngine {
         lineItems.push({
           variantId: variantGid,
           quantity: parseInt(row.product_quantity),
+          unitPriceTaxIncl: row.unit_price_tax_incl,
         });
       }
 
