@@ -226,4 +226,27 @@ describe("transformOrder", () => {
 
     expect(result.shippingLines![0].priceSet.shopMoney.amount).toBe("5.00");
   });
+
+  it("builds a custom line item (no variantId) when the PS product was deleted", () => {
+    const items = [
+      {
+        quantity: 2,
+        unitPriceTaxIncl: "45.978503",
+        title: "Porte Savon Mural (deleted PS product)",
+        sku: "M41003",
+      },
+    ];
+    const result = transformOrder(baseOrder, customerGid, items);
+
+    expect(result.lineItems).toEqual([
+      {
+        quantity: 2,
+        priceSet: { shopMoney: { amount: "45.98", currencyCode: "CAD" } },
+        title: "Porte Savon Mural (deleted PS product)",
+        sku: "M41003",
+      },
+    ]);
+    // Must not carry a variantId key at all
+    expect((result.lineItems[0] as Record<string, unknown>).variantId).toBeUndefined();
+  });
 });

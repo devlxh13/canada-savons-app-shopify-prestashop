@@ -59,10 +59,22 @@ function centsToAmount(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/**
+ * A PS order row, mid-way between the raw PrestaShop `order_detail` row and
+ * the Shopify `OrderCreateLineItemInput` shape.
+ *
+ * When `variantId` is set, the line maps to an existing Shopify variant and
+ * Shopify will resolve the title/sku itself. When it is omitted, the line is
+ * emitted as a **custom line item** (no catalog reference) using the `title`
+ * and `sku` from the original PS row — this keeps orders importable even
+ * when the underlying PS product has been deleted or renamed since.
+ */
 export interface PsOrderLineItem {
-  variantId: string;
+  variantId?: string;
   quantity: number;
   unitPriceTaxIncl: string;
+  title?: string;
+  sku?: string;
 }
 
 export function transformOrder(
@@ -83,9 +95,11 @@ export function transformOrder(
   const shopifyLineItems = lineItems.map((li) => {
     const rounded = centsToAmount(toCents(li.unitPriceTaxIncl));
     return {
-      variantId: li.variantId,
       quantity: li.quantity,
       priceSet: money(rounded),
+      ...(li.variantId && { variantId: li.variantId }),
+      ...(li.title && { title: li.title }),
+      ...(li.sku && { sku: li.sku }),
     };
   });
 

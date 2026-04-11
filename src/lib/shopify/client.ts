@@ -215,9 +215,11 @@ export class ShopifyClient {
   async createOrder(input: {
     customer: { toAssociate: { id: string } };
     lineItems: {
-      variantId: string;
+      variantId?: string;
       quantity: number;
       priceSet?: { shopMoney: { amount: string; currencyCode: string } };
+      title?: string;
+      sku?: string;
     }[];
     billingAddress?: Record<string, string>;
     shippingAddress?: Record<string, string>;

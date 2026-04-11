@@ -160,22 +160,32 @@ export class SyncEngine {
         throw new Error(`Failed to resolve customer PS#${customerId}`);
       }
 
-      // Auto-resolve products from order rows and get variant GIDs
+      // Auto-resolve products from order rows. If a row's PS product is
+      // missing, deleted, or fails its own product sync, fall back to a
+      // custom (variant-less) line item carrying the historical PS title,
+      // sku, and unit price — keeps the order importable instead of throwing.
       const orderRows = psOrder.associations?.order_rows ?? [];
       const lineItems: PsOrderLineItem[] = [];
 
       for (const row of orderRows) {
         const productPsId = parseInt(row.product_id);
-        const productResult = await this.syncSingleProduct(productPsId, jobId);
-        if (!productResult.shopifyGid) {
-          throw new Error(`Failed to resolve product PS#${productPsId}`);
-        }
-        const variantGid = await this.getFirstVariantGid(productResult.shopifyGid);
-        lineItems.push({
-          variantId: variantGid,
+        const baseLine: PsOrderLineItem = {
           quantity: parseInt(row.product_quantity),
           unitPriceTaxIncl: row.unit_price_tax_incl,
-        });
+          title: row.product_name,
+          sku: (row as { product_reference?: string }).product_reference,
+        };
+        try {
+          const productResult = await this.syncSingleProduct(productPsId, jobId);
+          if (productResult.shopifyGid) {
+            const variantGid = await this.getFirstVariantGid(productResult.shopifyGid);
+            lineItems.push({ ...baseLine, variantId: variantGid });
+            continue;
+          }
+        } catch {
+          // fall through to custom line item
+        }
+        lineItems.push(baseLine);
       }
 
       // Resolve shipping address
