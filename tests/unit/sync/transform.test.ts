@@ -227,6 +227,44 @@ describe("transformOrder", () => {
     expect(result.shippingLines![0].priceSet.shopMoney.amount).toBe("5.00");
   });
 
+  it("emits a fixed discountCode when total_discounts_tax_incl > 0", () => {
+    // 2 × 45.98 - 5.00 discount + 8.84 shipping = 95.80
+    const order = {
+      ...baseOrder,
+      total_discounts_tax_incl: "5.00",
+      total_paid_tax_incl: "95.80",
+      total_shipping: "8.84",
+    };
+    const result = transformOrder(order, customerGid, lineItems);
+
+    expect(result.discountCode).toEqual({
+      itemFixedDiscountCode: {
+        amountSet: { shopMoney: { amount: "5.00", currencyCode: "CAD" } },
+        code: "PRESTASHOP_DISCOUNT",
+      },
+    });
+  });
+
+  it("omits discountCode when total_discounts_tax_incl is missing or 0", () => {
+    expect(transformOrder(baseOrder, customerGid, lineItems).discountCode).toBeUndefined();
+    const order = { ...baseOrder, total_discounts_tax_incl: "0.00" };
+    expect(transformOrder(order, customerGid, lineItems).discountCode).toBeUndefined();
+  });
+
+  it("accounts for the global discount when computing the penny gap", () => {
+    // 2 × 45.98 = 91.96, discount 5.00, shipping 8.83 (intentionally off by 0.01)
+    // PS total: 91.96 - 5.00 + 8.83 = 95.79 → after fix shipping becomes 8.84
+    const order = {
+      ...baseOrder,
+      total_discounts_tax_incl: "5.00",
+      total_paid_tax_incl: "95.80",
+      total_shipping: "8.83",
+    };
+    const result = transformOrder(order, customerGid, lineItems);
+
+    expect(result.shippingLines![0].priceSet.shopMoney.amount).toBe("8.84");
+  });
+
   it("builds a custom line item (no variantId) when the PS product was deleted", () => {
     const items = [
       {

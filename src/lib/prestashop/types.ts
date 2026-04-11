@@ -75,6 +75,9 @@ export interface PSOrder {
   total_paid_tax_excl: string;
   total_shipping: string;
   total_products: string;
+  total_discounts?: string;
+  total_discounts_tax_incl?: string;
+  total_discounts_tax_excl?: string;
   date_add: string;
   date_upd: string;
   reference: string;

@@ -109,14 +109,25 @@ export function transformOrder(
     (acc, li) => acc + toCents(li.priceSet.shopMoney.amount) * li.quantity,
     0
   );
+  const discountCents = toCents(order.total_discounts_tax_incl || "0");
   const psTotalCents = toCents(order.total_paid_tax_incl || "0");
   const originalShippingCents = toCents(order.total_shipping || "0");
-  const naiveShopifyTotal = subtotalCents + originalShippingCents;
+  // Shopify computes: subtotal − discount + shipping
+  const naiveShopifyTotal = subtotalCents - discountCents + originalShippingCents;
   const delta = psTotalCents - naiveShopifyTotal;
   const adjustedShippingCents = originalShippingCents + delta;
 
   const shippingLines = adjustedShippingCents > 0
     ? [{ title: "PrestaShop Shipping", priceSet: money(centsToAmount(adjustedShippingCents)) }]
+    : undefined;
+
+  const discountCode = discountCents > 0
+    ? {
+        itemFixedDiscountCode: {
+          amountSet: money(centsToAmount(discountCents)),
+          code: "PRESTASHOP_DISCOUNT",
+        },
+      }
     : undefined;
 
   return {
@@ -132,5 +143,6 @@ export function transformOrder(
     ...(processedAt && { processedAt }),
     ...(fulfillmentStatus && { fulfillmentStatus }),
     ...(shippingLines && { shippingLines }),
+    ...(discountCode && { discountCode }),
   };
 }

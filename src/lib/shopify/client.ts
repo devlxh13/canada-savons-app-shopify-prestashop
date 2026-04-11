@@ -234,6 +234,12 @@ export class ShopifyClient {
       title: string;
       priceSet: { shopMoney: { amount: string; currencyCode: string } };
     }[];
+    discountCode?: {
+      itemFixedDiscountCode: {
+        amountSet: { shopMoney: { amount: string; currencyCode: string } };
+        code: string;
+      };
+    };
   }): Promise<{ id: string }> {
     const { data } = await this.graphql.request(
       `mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -257,6 +263,7 @@ export class ShopifyClient {
             ...(input.currency && { currency: input.currency }),
             ...(input.taxesIncluded !== undefined && { taxesIncluded: input.taxesIncluded }),
             ...(input.shippingLines && { shippingLines: input.shippingLines }),
+            ...(input.discountCode && { discountCode: input.discountCode }),
           },
           options: { inventoryBehaviour: "BYPASS" },
         },

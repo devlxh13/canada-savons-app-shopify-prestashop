@@ -98,6 +98,26 @@ describe("ShopifyClient", () => {
       });
     });
 
+    it("forwards discountCode (itemFixedDiscountCode) to the orderCreate input", async () => {
+      await client.createOrder({
+        ...baseInput,
+        discountCode: {
+          itemFixedDiscountCode: {
+            amountSet: { shopMoney: { amount: "5.00", currencyCode: "CAD" } },
+            code: "PRESTASHOP_DISCOUNT",
+          },
+        },
+      });
+
+      const [, options] = mockGraphqlClient.request.mock.calls[0];
+      expect(options.variables.order.discountCode).toEqual({
+        itemFixedDiscountCode: {
+          amountSet: { shopMoney: { amount: "5.00", currencyCode: "CAD" } },
+          code: "PRESTASHOP_DISCOUNT",
+        },
+      });
+    });
+
     it("forwards shippingLines to the orderCreate input", async () => {
       await client.createOrder({
         ...baseInput,
