@@ -139,6 +139,14 @@ export class PSDbClient {
     return rows as Record<string, unknown>[];
   }
 
+  async listOrderStates(): Promise<Record<string, unknown>[]> {
+    const [rows] = await this.pool.query(
+      `SELECT id_order_state, shipped, delivered, paid
+       FROM ps_order_state`
+    );
+    return rows as Record<string, unknown>[];
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }

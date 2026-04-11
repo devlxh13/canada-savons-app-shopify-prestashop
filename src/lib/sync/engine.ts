@@ -202,12 +202,17 @@ export class SyncEngine {
         // Addresses not critical — continue without
       }
 
+      const fulfilledStateIds = await this.ps
+        .getFulfilledStateIds()
+        .catch(() => undefined);
+
       const transformed = transformOrder(
         psOrder,
         customerResult.shopifyGid,
         lineItems,
         shippingAddress,
-        shippingAddress
+        shippingAddress,
+        fulfilledStateIds
       );
 
       const created = await this.shopify.createOrder(transformed);

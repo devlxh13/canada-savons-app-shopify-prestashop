@@ -18,10 +18,35 @@ const DB_GET_MAP: Partial<Record<PSResourceType, DbGetMethod>> = {
 };
 
 export class PSConnector {
+  private fulfilledStateIdsPromise: Promise<Set<string>> | null = null;
+
   constructor(
     private apiClient: PSApiClient,
     private dbClient: PSDbClient
   ) {}
+
+  /**
+   * Returns the set of PS order-state IDs (as strings) that represent a
+   * shipped or delivered order. Reads ps_order_state.shipped/delivered
+   * directly from the DB — this data is static config so no API fallback
+   * is needed. Cached per-instance so repeated calls within a sync session
+   * hit the DB only once.
+   */
+  async getFulfilledStateIds(): Promise<Set<string>> {
+    if (this.fulfilledStateIdsPromise) return this.fulfilledStateIdsPromise;
+    this.fulfilledStateIdsPromise = this.dbClient.listOrderStates().then((rows) => {
+      const ids = new Set<string>();
+      for (const row of rows) {
+        const shipped = Number(row.shipped) === 1;
+        const delivered = Number(row.delivered) === 1;
+        if (shipped || delivered) {
+          ids.add(String(row.id_order_state));
+        }
+      }
+      return ids;
+    });
+    return this.fulfilledStateIdsPromise;
+  }
 
   async list<T>(resource: PSResourceType, filters?: PSFilters): Promise<T[]> {
     try {

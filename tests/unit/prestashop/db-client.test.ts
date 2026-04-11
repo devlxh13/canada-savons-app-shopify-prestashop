@@ -66,6 +66,22 @@ describe("PSDbClient", () => {
     });
   });
 
+  describe("listOrderStates", () => {
+    it("returns rows with shipped/delivered flags from ps_order_state", async () => {
+      const rows = [
+        { id_order_state: 4, shipped: 1, delivered: 0, paid: 1 },
+        { id_order_state: 5, shipped: 0, delivered: 1, paid: 1 },
+        { id_order_state: 2, shipped: 0, delivered: 0, paid: 1 },
+      ];
+      mockPool.query.mockResolvedValueOnce([rows]);
+
+      const result = await client.listOrderStates();
+
+      expect(result).toEqual(rows);
+      expect(mockPool.query.mock.calls[0][0]).toContain("ps_order_state");
+    });
+  });
+
   describe("getOrder", () => {
     it("returns null when the order header is missing", async () => {
       mockPool.query.mockResolvedValueOnce([[]]);

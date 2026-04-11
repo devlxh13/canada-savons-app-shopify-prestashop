@@ -34,9 +34,9 @@ export function transformCustomer(ps: PSCustomer) {
   };
 }
 
-// PS order states treated as fully fulfilled in Shopify.
-// Standard PrestaShop install: 4=Shipped, 5=Delivered.
-const PS_FULFILLED_STATES = new Set(["4", "5"]);
+// Fallback mapping when the caller didn't resolve the state ids from the
+// PrestaShop DB. Matches the standard install (4=Shipped, 5=Delivered).
+const PS_FULFILLED_STATES_DEFAULT = new Set(["4", "5"]);
 
 // Both PS and Shopify shop operate in CAD — no conversion needed.
 const ORDER_CURRENCY = "CAD" as const;
@@ -70,10 +70,11 @@ export function transformOrder(
   customerGid: string,
   lineItems: PsOrderLineItem[],
   shippingAddress?: Record<string, string>,
-  billingAddress?: Record<string, string>
+  billingAddress?: Record<string, string>,
+  fulfilledStateIds: Set<string> = PS_FULFILLED_STATES_DEFAULT
 ) {
   const processedAt = psDateToISO(order.date_add);
-  const fulfillmentStatus = PS_FULFILLED_STATES.has(order.current_state)
+  const fulfillmentStatus = fulfilledStateIds.has(order.current_state)
     ? ("FULFILLED" as const)
     : undefined;
 
