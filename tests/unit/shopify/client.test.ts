@@ -36,7 +36,7 @@ describe("ShopifyClient", () => {
 
   describe("createOrder", () => {
     const baseInput = {
-      customerId: "gid://shopify/Customer/1",
+      customer: { toAssociate: { id: "gid://shopify/Customer/1" } },
       lineItems: [{ variantId: "gid://shopify/ProductVariant/10", quantity: 2 }],
       financialStatus: "PAID",
       note: "Imported from PrestaShop — Ref: JORAAGVOR",

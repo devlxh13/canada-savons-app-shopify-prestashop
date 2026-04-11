@@ -213,7 +213,7 @@ export class ShopifyClient {
   }
 
   async createOrder(input: {
-    customerId: string;
+    customer: { toAssociate: { id: string } };
     lineItems: {
       variantId: string;
       quantity: number;
@@ -243,7 +243,7 @@ export class ShopifyClient {
       {
         variables: {
           order: {
-            customerId: input.customerId,
+            customer: input.customer,
             lineItems: input.lineItems,
             billingAddress: input.billingAddress,
             shippingAddress: input.shippingAddress,
