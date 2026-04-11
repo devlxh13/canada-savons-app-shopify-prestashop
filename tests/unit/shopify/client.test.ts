@@ -34,6 +34,49 @@ describe("ShopifyClient", () => {
     });
   });
 
+  describe("createOrder", () => {
+    const baseInput = {
+      customerId: "gid://shopify/Customer/1",
+      lineItems: [{ variantId: "gid://shopify/ProductVariant/10", quantity: 2 }],
+      financialStatus: "PAID",
+      note: "Imported from PrestaShop — Ref: JORAAGVOR",
+      tags: ["prestashop-import"],
+    };
+
+    beforeEach(() => {
+      mockGraphqlClient.request.mockResolvedValue({
+        data: {
+          orderCreate: {
+            order: { id: "gid://shopify/Order/1" },
+            userErrors: [],
+          },
+        },
+      });
+    });
+
+    it("forwards processedAt to the orderCreate mutation input", async () => {
+      await client.createOrder({ ...baseInput, processedAt: "2025-12-15T10:30:00.000Z" });
+
+      const [, options] = mockGraphqlClient.request.mock.calls[0];
+      expect(options.variables.order.processedAt).toBe("2025-12-15T10:30:00.000Z");
+    });
+
+    it("forwards fulfillmentStatus to the orderCreate mutation input", async () => {
+      await client.createOrder({ ...baseInput, fulfillmentStatus: "FULFILLED" });
+
+      const [, options] = mockGraphqlClient.request.mock.calls[0];
+      expect(options.variables.order.fulfillmentStatus).toBe("FULFILLED");
+    });
+
+    it("omits processedAt and fulfillmentStatus when not provided", async () => {
+      await client.createOrder(baseInput);
+
+      const [, options] = mockGraphqlClient.request.mock.calls[0];
+      expect(options.variables.order.processedAt).toBeUndefined();
+      expect(options.variables.order.fulfillmentStatus).toBeUndefined();
+    });
+  });
+
   describe("createProduct", () => {
     it("creates a product via productCreate mutation", async () => {
       mockGraphqlClient.request.mockResolvedValueOnce({

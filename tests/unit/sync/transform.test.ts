@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { transformProduct, transformCustomer } from "@/lib/sync/transform";
-import type { PSProduct, PSCustomer } from "@/lib/prestashop/types";
+import { transformProduct, transformCustomer, transformOrder } from "@/lib/sync/transform";
+import type { PSProduct, PSCustomer, PSOrder } from "@/lib/prestashop/types";
 
 describe("transformProduct", () => {
   it("transforms a PS product to Shopify format", () => {
@@ -84,5 +84,63 @@ describe("transformCustomer", () => {
     expect(result.firstName).toBe("Jean");
     expect(result.lastName).toBe("Dupont");
     expect(result.email).toBe("jean@example.com");
+  });
+});
+
+describe("transformOrder", () => {
+  const baseOrder: PSOrder = {
+    id: 5128,
+    id_customer: "42",
+    id_cart: "1",
+    id_currency: "1",
+    current_state: "2",
+    payment: "Cheque",
+    total_paid: "50.00",
+    total_paid_tax_incl: "50.00",
+    total_paid_tax_excl: "45.00",
+    total_shipping: "5.00",
+    total_products: "45.00",
+    date_add: "2025-12-15 10:30:00",
+    date_upd: "2026-01-05 14:00:00",
+    reference: "JORAAGVOR",
+  };
+  const lineItems = [{ variantId: "gid://shopify/ProductVariant/1", quantity: 2 }];
+  const customerGid = "gid://shopify/Customer/99";
+
+  it("backdates the order using PS date_add as processedAt ISO", () => {
+    const result = transformOrder(baseOrder, customerGid, lineItems);
+    expect(result.processedAt).toBe("2025-12-15T10:30:00.000Z");
+  });
+
+  it("omits processedAt when date_add is empty", () => {
+    const order = { ...baseOrder, date_add: "" };
+    const result = transformOrder(order, customerGid, lineItems);
+    expect(result.processedAt).toBeUndefined();
+  });
+
+  it("sets fulfillmentStatus=FULFILLED for shipped PS state (4)", () => {
+    const order = { ...baseOrder, current_state: "4" };
+    const result = transformOrder(order, customerGid, lineItems);
+    expect(result.fulfillmentStatus).toBe("FULFILLED");
+  });
+
+  it("sets fulfillmentStatus=FULFILLED for delivered PS state (5)", () => {
+    const order = { ...baseOrder, current_state: "5" };
+    const result = transformOrder(order, customerGid, lineItems);
+    expect(result.fulfillmentStatus).toBe("FULFILLED");
+  });
+
+  it("omits fulfillmentStatus for paid-but-not-shipped state (2)", () => {
+    const result = transformOrder(baseOrder, customerGid, lineItems);
+    expect(result.fulfillmentStatus).toBeUndefined();
+  });
+
+  it("preserves existing fields (financialStatus, note, tags, customerId)", () => {
+    const result = transformOrder(baseOrder, customerGid, lineItems);
+    expect(result.financialStatus).toBe("PAID");
+    expect(result.note).toBe("Imported from PrestaShop — Ref: JORAAGVOR");
+    expect(result.tags).toEqual(["prestashop-import"]);
+    expect(result.customerId).toBe(customerGid);
+    expect(result.lineItems).toBe(lineItems);
   });
 });

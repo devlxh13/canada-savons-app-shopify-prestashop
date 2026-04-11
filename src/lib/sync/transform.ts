@@ -34,6 +34,16 @@ export function transformCustomer(ps: PSCustomer) {
   };
 }
 
+// PS order states treated as fully fulfilled in Shopify.
+// Standard PrestaShop install: 4=Shipped, 5=Delivered.
+const PS_FULFILLED_STATES = new Set(["4", "5"]);
+
+function psDateToISO(psDate: string): string | undefined {
+  if (!psDate) return undefined;
+  const d = new Date(`${psDate.replace(" ", "T")}Z`);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
 export function transformOrder(
   order: PSOrder,
   customerGid: string,
@@ -41,6 +51,11 @@ export function transformOrder(
   shippingAddress?: Record<string, string>,
   billingAddress?: Record<string, string>
 ) {
+  const processedAt = psDateToISO(order.date_add);
+  const fulfillmentStatus = PS_FULFILLED_STATES.has(order.current_state)
+    ? ("FULFILLED" as const)
+    : undefined;
+
   return {
     customerId: customerGid,
     lineItems,
@@ -49,5 +64,7 @@ export function transformOrder(
     financialStatus: "PAID",
     note: `Imported from PrestaShop — Ref: ${order.reference}`,
     tags: ["prestashop-import"],
+    ...(processedAt && { processedAt }),
+    ...(fulfillmentStatus && { fulfillmentStatus }),
   };
 }

@@ -220,6 +220,8 @@ export class ShopifyClient {
     financialStatus: string;
     note: string;
     tags: string[];
+    processedAt?: string;
+    fulfillmentStatus?: "FULFILLED" | "PARTIAL" | "RESTOCKED";
   }): Promise<{ id: string }> {
     const { data } = await this.graphql.request(
       `mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -238,6 +240,8 @@ export class ShopifyClient {
             financialStatus: input.financialStatus,
             note: input.note,
             tags: input.tags,
+            ...(input.processedAt && { processedAt: input.processedAt }),
+            ...(input.fulfillmentStatus && { fulfillmentStatus: input.fulfillmentStatus }),
           },
           options: { inventoryBehaviour: "BYPASS" },
         },
