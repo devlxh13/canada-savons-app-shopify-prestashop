@@ -51,6 +51,14 @@ function money(amount: string) {
   return { shopMoney: { amount, currencyCode: ORDER_CURRENCY } };
 }
 
+function toCents(amount: string): number {
+  return Math.round(parseFloat(amount || "0") * 100);
+}
+
+function centsToAmount(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 export interface PsOrderLineItem {
   variantId: string;
   quantity: number;
@@ -69,19 +77,35 @@ export function transformOrder(
     ? ("FULFILLED" as const)
     : undefined;
 
-  const shopifyLineItems = lineItems.map((li) => ({
-    variantId: li.variantId,
-    quantity: li.quantity,
-    priceSet: money(li.unitPriceTaxIncl),
-  }));
+  // Round each unit price to 2 decimals (Shopify does this anyway) and keep
+  // the rounded amount so we can compute the gap against the PS total.
+  const shopifyLineItems = lineItems.map((li) => {
+    const rounded = centsToAmount(toCents(li.unitPriceTaxIncl));
+    return {
+      variantId: li.variantId,
+      quantity: li.quantity,
+      priceSet: money(rounded),
+    };
+  });
 
-  const shippingAmount = parseFloat(order.total_shipping || "0");
-  const shippingLines = shippingAmount > 0
-    ? [{ title: "PrestaShop Shipping", priceSet: money(order.total_shipping) }]
+  // Distribute the penny gap into the shipping line so
+  // total_paid_tax_incl matches Shopify's recomputed total to the cent.
+  const subtotalCents = shopifyLineItems.reduce(
+    (acc, li) => acc + toCents(li.priceSet.shopMoney.amount) * li.quantity,
+    0
+  );
+  const psTotalCents = toCents(order.total_paid_tax_incl || "0");
+  const originalShippingCents = toCents(order.total_shipping || "0");
+  const naiveShopifyTotal = subtotalCents + originalShippingCents;
+  const delta = psTotalCents - naiveShopifyTotal;
+  const adjustedShippingCents = originalShippingCents + delta;
+
+  const shippingLines = adjustedShippingCents > 0
+    ? [{ title: "PrestaShop Shipping", priceSet: money(centsToAmount(adjustedShippingCents)) }]
     : undefined;
 
   return {
-    customerId: customerGid,
+    customer: { toAssociate: { id: customerGid } },
     currency: ORDER_CURRENCY,
     taxesIncluded: true,
     lineItems: shopifyLineItems,

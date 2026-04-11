@@ -95,11 +95,11 @@ describe("transformOrder", () => {
     id_currency: "1",
     current_state: "2",
     payment: "Cheque",
-    total_paid: "50.00",
-    total_paid_tax_incl: "50.00",
-    total_paid_tax_excl: "45.00",
-    total_shipping: "5.00",
-    total_products: "45.00",
+    total_paid: "91.96",
+    total_paid_tax_incl: "91.96",
+    total_paid_tax_excl: "85.00",
+    total_shipping: "0.00",
+    total_products: "85.00",
     date_add: "2025-12-15 10:30:00",
     date_upd: "2026-01-05 14:00:00",
     reference: "JORAAGVOR",
@@ -141,22 +141,22 @@ describe("transformOrder", () => {
     expect(result.fulfillmentStatus).toBeUndefined();
   });
 
-  it("preserves existing fields (financialStatus, note, tags, customerId)", () => {
+  it("preserves existing fields (financialStatus, note, tags, customer)", () => {
     const result = transformOrder(baseOrder, customerGid, lineItems);
     expect(result.financialStatus).toBe("PAID");
     expect(result.note).toBe("Imported from PrestaShop — Ref: JORAAGVOR");
     expect(result.tags).toEqual(["prestashop-import"]);
-    expect(result.customerId).toBe(customerGid);
+    expect(result.customer).toEqual({ toAssociate: { id: customerGid } });
   });
 
-  it("builds line items with priceSet from unit_price_tax_incl", () => {
+  it("builds line items with 2-decimal priceSet rounded from unit_price_tax_incl", () => {
     const result = transformOrder(baseOrder, customerGid, lineItems);
     expect(result.lineItems).toEqual([
       {
         variantId: "gid://shopify/ProductVariant/1",
         quantity: 2,
         priceSet: {
-          shopMoney: { amount: "45.978503", currencyCode: "CAD" },
+          shopMoney: { amount: "45.98", currencyCode: "CAD" },
         },
       },
     ]);
@@ -168,22 +168,62 @@ describe("transformOrder", () => {
     expect(result.taxesIncluded).toBe(true);
   });
 
-  it("adds shippingLines when total_shipping > 0", () => {
-    const order = { ...baseOrder, total_shipping: "13.800000" };
+  it("adds shippingLines when total_shipping > 0 and sum matches PS total", () => {
+    // 2 × 45.98 + 13.80 = 105.76
+    const order = {
+      ...baseOrder,
+      total_paid_tax_incl: "105.76",
+      total_shipping: "13.800000",
+    };
     const result = transformOrder(order, customerGid, lineItems);
     expect(result.shippingLines).toEqual([
       {
         title: "PrestaShop Shipping",
         priceSet: {
-          shopMoney: { amount: "13.800000", currencyCode: "CAD" },
+          shopMoney: { amount: "13.80", currencyCode: "CAD" },
         },
       },
     ]);
   });
 
   it("omits shippingLines when total_shipping is 0", () => {
-    const order = { ...baseOrder, total_shipping: "0.000000" };
-    const result = transformOrder(order, customerGid, lineItems);
+    // 2 × 45.98 = 91.96 already matches baseOrder.total_paid_tax_incl
+    const result = transformOrder(baseOrder, customerGid, lineItems);
     expect(result.shippingLines).toBeUndefined();
+  });
+
+  it("absorbs rounding gap into shippingLines so Shopify total = total_paid_tax_incl", () => {
+    // JORAAGVOR real numbers: PS total 94.24, Shopify naive total 94.25
+    const order = {
+      ...baseOrder,
+      total_paid_tax_incl: "94.240000",
+      total_shipping: "13.800000",
+    };
+    const items = [
+      { variantId: "gid://shopify/ProductVariant/1", quantity: 1, unitPriceTaxIncl: "45.978503" },
+      { variantId: "gid://shopify/ProductVariant/2", quantity: 3, unitPriceTaxIncl: "11.486003" },
+    ];
+    const result = transformOrder(order, customerGid, items);
+
+    // Round each unit to 2 decimals, sum × qty, add adjusted shipping → must equal 94.24
+    const subtotal = 45.98 * 1 + 11.49 * 3;
+    const adjustedShipping = parseFloat(result.shippingLines![0].priceSet.shopMoney.amount);
+    expect(subtotal + adjustedShipping).toBeCloseTo(94.24, 2);
+    // Specifically: shipping absorbed 0.01 → 13.79
+    expect(result.shippingLines![0].priceSet.shopMoney.amount).toBe("13.79");
+  });
+
+  it("leaves shipping untouched when naive total already matches PS total", () => {
+    const order = {
+      ...baseOrder,
+      total_paid_tax_incl: "105.78",
+      total_shipping: "5.00",
+    };
+    const items = [
+      { variantId: "gid://shopify/ProductVariant/1", quantity: 2, unitPriceTaxIncl: "50.39" },
+    ];
+    const result = transformOrder(order, customerGid, items);
+
+    expect(result.shippingLines![0].priceSet.shopMoney.amount).toBe("5.00");
   });
 });
