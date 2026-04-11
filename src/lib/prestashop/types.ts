@@ -68,6 +68,8 @@ export interface PSOrder {
   id_customer: string;
   id_cart: string;
   id_currency: string;
+  id_address_delivery?: string;
+  id_address_invoice?: string;
   current_state: string;
   payment: string;
   total_paid: string;

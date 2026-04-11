@@ -188,29 +188,52 @@ export class SyncEngine {
         lineItems.push(baseLine);
       }
 
-      // Resolve shipping address
-      let shippingAddress: Record<string, string> | undefined;
-      try {
-        const addresses = await this.ps.list<PSAddress>("addresses", {
-          display: "full",
-          filter: { id_customer: psOrder.id_customer },
-        });
-        if (addresses.length > 0) {
-          const addr = addresses[0];
-          shippingAddress = {
-            firstName: addr.firstname,
-            lastName: addr.lastname,
-            address1: addr.address1,
-            address2: addr.address2 || "",
-            city: addr.city,
-            zip: addr.postcode,
-            countryCode: "CA",
-            phone: addr.phone || addr.phone_mobile || "",
-          };
+      // Resolve shipping + billing addresses. The order points at specific
+      // address ids (id_address_delivery / id_address_invoice). Fall back to
+      // the customer's first address if those ids are missing or unfetchable.
+      const toShopifyAddress = (addr: PSAddress): Record<string, string> => ({
+        firstName: addr.firstname,
+        lastName: addr.lastname,
+        address1: addr.address1,
+        address2: addr.address2 || "",
+        city: addr.city,
+        zip: addr.postcode,
+        countryCode: "CA",
+        phone: addr.phone || addr.phone_mobile || "",
+      });
+
+      const fetchAddress = async (id?: string) => {
+        if (!id) return undefined;
+        try {
+          const a = await this.ps.get<PSAddress>("addresses", parseInt(id));
+          return toShopifyAddress(a);
+        } catch {
+          return undefined;
         }
-      } catch {
-        // Addresses not critical — continue without
+      };
+
+      let shippingAddress = await fetchAddress(psOrder.id_address_delivery);
+      let billingAddress = await fetchAddress(psOrder.id_address_invoice);
+
+      // Fallback: customer's first address if neither resolved
+      if (!shippingAddress && !billingAddress) {
+        try {
+          const addresses = await this.ps.list<PSAddress>("addresses", {
+            display: "full",
+            filter: { id_customer: psOrder.id_customer },
+          });
+          if (addresses.length > 0) {
+            const fallback = toShopifyAddress(addresses[0]);
+            shippingAddress = fallback;
+            billingAddress = fallback;
+          }
+        } catch {
+          // Addresses not critical — continue without
+        }
       }
+      // If only one of the two resolved, mirror it
+      if (shippingAddress && !billingAddress) billingAddress = shippingAddress;
+      if (billingAddress && !shippingAddress) shippingAddress = billingAddress;
 
       const fulfilledStateIds = await this.ps
         .getFulfilledStateIds()
@@ -221,7 +244,7 @@ export class SyncEngine {
         customerResult.shopifyGid,
         lineItems,
         shippingAddress,
-        shippingAddress,
+        billingAddress,
         fulfilledStateIds
       );
 
