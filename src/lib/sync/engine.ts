@@ -235,9 +235,14 @@ export class SyncEngine {
       if (shippingAddress && !billingAddress) billingAddress = shippingAddress;
       if (billingAddress && !shippingAddress) shippingAddress = billingAddress;
 
-      const fulfilledStateIds = await this.ps
-        .getFulfilledStateIds()
-        .catch(() => undefined);
+      let fulfilledStateIds: Set<string> | undefined;
+      try {
+        fulfilledStateIds = await this.ps.getFulfilledStateIds();
+      } catch {
+        // PS DB unreachable (typical from envs outside the OVH network) —
+        // fall back to the hardcoded default in transformOrder.
+        fulfilledStateIds = undefined;
+      }
 
       const transformed = transformOrder(
         psOrder,
