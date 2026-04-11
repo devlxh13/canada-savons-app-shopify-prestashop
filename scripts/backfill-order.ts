@@ -62,6 +62,32 @@ async function main() {
   });
   console.log("[backfill] new mapping:", after ?? "(none — sync failed)");
 
+  // If the re-sync succeeded AND there was a previous Shopify order, archive
+  // the old one: tag it `prestashop-superseded` and append ` | Replaced by <new-gid>`
+  // to its note. This keeps history intact while letting the merchant filter
+  // duplicates in Shopify admin. See LXH-273.
+  const oldGid = before?.shopifyGid as string | undefined;
+  const newGid = result.action === "create" ? result.shopifyGid : undefined;
+  if (oldGid && newGid && oldGid !== newGid) {
+    try {
+      await shopifyClient.tagAndNoteOrder(oldGid, {
+        addTag: "prestashop-superseded",
+        noteSuffix: ` | Replaced by ${newGid}`,
+      });
+      console.log(`[backfill] archived old Shopify order ${oldGid} -> new ${newGid}`);
+    } catch (err) {
+      console.error(
+        `[backfill] failed to archive old Shopify order ${oldGid}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  } else if (oldGid && !newGid) {
+    console.log(`[backfill] skipped archival — re-sync did not create a new order (old=${oldGid})`);
+  }
+
+  console.log("[backfill] old gid:", oldGid ?? "(none)");
+  console.log("[backfill] new gid:", newGid ?? "(none)");
+
   await prisma.$disconnect();
 }
 

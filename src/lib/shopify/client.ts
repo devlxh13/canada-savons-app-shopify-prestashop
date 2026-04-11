@@ -272,6 +272,71 @@ export class ShopifyClient {
     return result.order!;
   }
 
+  /**
+   * Archive an existing Shopify order that is being superseded by a
+   * fresh re-sync: tags it and appends a suffix to its note. Used by
+   * the backfill script so merchants can filter superseded duplicates
+   * without losing traceability. Hard-delete is intentionally avoided
+   * (scopes + history preservation).
+   */
+  async tagAndNoteOrder(
+    gid: string,
+    { addTag, noteSuffix }: { addTag: string; noteSuffix: string }
+  ): Promise<void> {
+    // 1) Read current note so we can append rather than replace
+    const { data: readData } = await this.graphql.request(
+      `query getOrderNote($id: ID!) {
+        order(id: $id) { id note }
+      }`,
+      { variables: { id: gid } }
+    );
+    const currentOrder = readData.order as { id: string; note: string | null } | null;
+    const currentNote = currentOrder?.note ?? "";
+
+    // 2) Add the archival tag
+    const { data: tagData } = await this.graphql.request(
+      `mutation tagsAdd($id: ID!, $tags: [String!]!) {
+        tagsAdd(id: $id, tags: $tags) {
+          node { id }
+          userErrors { field message }
+        }
+      }`,
+      { variables: { id: gid, tags: [addTag] } }
+    );
+    const tagResult = tagData.tagsAdd as {
+      node: { id: string } | null;
+      userErrors: { field: string[]; message: string }[];
+    };
+    if (tagResult.userErrors.length > 0) {
+      throw new Error(tagResult.userErrors.map((e) => e.message).join(", "));
+    }
+
+    // 3) Append suffix to note via orderUpdate
+    const { data: updateData } = await this.graphql.request(
+      `mutation orderUpdate($input: OrderInput!) {
+        orderUpdate(input: $input) {
+          order { id note }
+          userErrors { field message }
+        }
+      }`,
+      {
+        variables: {
+          input: {
+            id: gid,
+            note: `${currentNote}${noteSuffix}`,
+          },
+        },
+      }
+    );
+    const updateResult = updateData.orderUpdate as {
+      order: { id: string; note: string | null } | null;
+      userErrors: { field: string[]; message: string }[];
+    };
+    if (updateResult.userErrors.length > 0) {
+      throw new Error(updateResult.userErrors.map((e) => e.message).join(", "));
+    }
+  }
+
   async setInventory(productGid: string, quantity: number): Promise<void> {
     // Get variant's inventoryItem ID + current quantity
     const { data: prodData } = await this.graphql.request(
