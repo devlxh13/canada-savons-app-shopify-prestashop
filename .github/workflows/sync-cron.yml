@@ -1,0 +1,38 @@
+name: sync-cron
+
+# External cron trigger for /api/sync/cron.
+# Replaces vercel.json crons since Hobby plan only allows daily crons.
+# The dispatcher at /api/sync/cron reads CronConfig from DB and decides
+# per-resource whether a sync is actually due, so a single 15-min ping is enough.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/sync/cron
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::APP_URL and CRON_SECRET repo secrets must be set"
+            exit 1
+          fi
+          response=$(curl -sS --max-time 290 -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL%/}/api/sync/cron")
+          body=$(echo "$response" | sed -e 's/HTTP_STATUS:.*//g')
+          status=$(echo "$response" | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+          echo "status=$status"
+          echo "body=$body"
+          if [ "$status" != "200" ]; then
+            echo "::error::sync-cron endpoint returned $status"
+            exit 1
+          fi
